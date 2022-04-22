@@ -1,7 +1,9 @@
 
+import stringify from "json-stringify-safe";
 import { isPromise } from "util/types"
-import { getTagname, TagName, Xml } from "./index.js"
+
 import Depot from "./Depot.js";
+import { getTagname, TagName, Xml } from "./parse-xml.js";
 import { makePromise } from "./utils.js";
 
 const attributeDepot = new Depot<TagName, DeepPromise<attribute>>(name => name.local + '#' + name.namespace);
@@ -151,70 +153,47 @@ export function waitAll<T>(obj: T): Promise<WaitAlll<T>> {
 
 async function waitAllInternal<T>(obj: T, depth?: number): Promise<WaitAlll<T>> {
     if (typeof depth === 'undefined') {
-        const result = waitAllInternal(obj, 0);
+        const result = await waitAllInternal(obj, 0);
 
         function removeVisited(obj: any) {
             if (Array.isArray(obj)) {
                 obj.forEach(x => removeVisited(x));
             } else if (typeof obj === 'object') {
-                obj['#visited'] = false;
-                delete obj['#visited'];
-                for (const key of Object.keys(obj)) {
-                    removeVisited(obj[key]);
+                if (obj['#visited']) {
+                    delete obj['#visited'];
+                    for (const key of Object.keys(obj)) {
+                        removeVisited(obj[key]);
+                    }
                 }
             }
         }
         removeVisited(result); // this does not change result?
 
-
         return result;
     }
-    // 4 objects fehlen
-    // 4 promises fehlen
-    if (depth > 45) {
-        console.warn(`waitAll abort\t${depth}`)
-        return `Depth was ${depth}` as any;
-    }
-    // if (depth == 1)
-    //     console.warn(`start INIT ${depth}`)
-    // await delay(1000);
+
+
     if (isPromise(obj)) {
-        // if (depth == 1)
-        //     console.warn(`INIT\tpropmise\t${depth}`)
         const promise = await waitAllInternal(await obj, depth + 1) as WaitAlll<T>;
-        // if (depth == 1)
-        //     console.warn(`waitAll\tpropmise\t${depth}\t${JSON.stringify(Object.keys(promise as any), undefined, ' ')}`)
         return promise;
     }
 
     if (Array.isArray(obj)) {
-        // if (depth == 1)
-        //     console.warn(`INIT\tarray\t${depth}`)
         const array = await Promise.all(obj.map(x => waitAllInternal(x, depth + 1))) as WaitAlll<T>;
-        // if (depth == 1)
-        //     console.warn(`waitAll\tarray\t${depth}`)
         return array;
     }
     else if (typeof obj === 'object') {
         if ((obj as any)['#visited']) {
             // already visted
-            // if (depth == 1)
-            //     console.warn(`NOTHING\tvisited\t${depth}`)
             return obj as any;
         }
         (obj as any)['#visited'] = true;
-        // if (depth == 1)
-        //     console.warn(`INIT\tobject\t${depth}`)
         for (const key of Object.keys(obj) as Array<keyof T>) {
             const value: any = (obj as any)[key];
             (obj as any)[key] = await waitAllInternal(value as any, depth + 1);
         }
-        // if (depth == 1)
-        //     console.warn(`waitAll\tobject\t${depth}`)
         return obj as any;
     } else {
-        // if (depth == 1)
-        //     console.warn(`waitAll else\t${depth}\t${obj}`)
 
         return obj as WaitAlll<T>;
     }
@@ -246,29 +225,6 @@ export async function parseSchemas(schemas: Xml[]): Promise<element[]> {
 
 
     const result = waitAll(elementDepot.getAll());
-
-    let isComputing = await Promise.race([result, 'pending']) === 'pending';
-    while (isComputing) {
-
-
-        // console.log();
-        // console.log(`missing elements ${JSON.stringify(elementDepot.getAllMissing())}`)
-        // console.log(`missing complexOrSimpleTypeDepot ${JSON.stringify(complexOrSimpleTypeDepot.getAllMissing())}`)
-        // console.log(`missing complexTypeDepot ${JSON.stringify(complexTypeDepot.getAllMissing())}`)
-        // console.log(`missing simpleTypeDepot ${JSON.stringify(simpleTypeDepot.getAllMissing())}`)
-        // console.log(`missing attributeDepot ${JSON.stringify(attributeDepot.getAllMissing())}`)
-        // console.log(`missing attributeGroupDepot ${JSON.stringify(attributeGroupDepot.getAllMissing())}`)
-        // console.log();
-
-
-        const wait = delay(10000);
-
-
-        await wait;
-        isComputing = await Promise.race([result, 'pending']) === 'pending';
-    }
-
-    console.log('Loop Finished')
     const elements = await result;
     return elements;
 
@@ -285,7 +241,7 @@ function getElement(xml: Xml, targetNamespace: string, isRoot: boolean): DeepPro
             const loadedType = complexOrSimpleTypeDepot.getType(getTagname(xml.attributes['type'], xml.scope));
             const r: DeepPromise<element> = makePromise<element>(async resolve => {
                 const x: DeepPromise<element> = {
-                    name: { local: name, namespace: xml.scope[''] },
+                    name: { local: name, namespace: targetNamespace },
                     content: await loadedType,
                     type: 'element',
                     occurence: parseOccurence(xml, targetNamespace)
@@ -317,7 +273,7 @@ function getElement(xml: Xml, targetNamespace: string, isRoot: boolean): DeepPro
 
         const r: DeepPromise<element> = {
             type: 'element',
-            name: { local: name, namespace: xml.scope[''] },
+            name: { local: name, namespace: targetNamespace },
             occurence: parseOccurence(xml, targetNamespace),
             content: content
         }

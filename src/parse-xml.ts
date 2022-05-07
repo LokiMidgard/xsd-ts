@@ -3,7 +3,7 @@ import { builtInXsdtypes } from "./xsd.js";
 
 
 
-export function parseXml(xmlText: string) : Xml { 
+export function parseXml(xmlText: string): Xml {
     const parser = new XMLParser({
         allowBooleanAttributes: true,
         ignoreAttributes: false,
@@ -28,16 +28,15 @@ function CalculateNS(obj: any, scope?: Scope) {
 
     const filteredKrys = Object.keys(obj).filter(x => x !== ':@' && x !== '#text');
     if (filteredKrys.length == 0) {
-        console.log(JSON.stringify(obj, undefined, 2));
-
+        console.log(`no key ${JSON.stringify(obj, undefined, 2)}`);
+        return {} as Xml;
     }
     const tagName = filteredKrys[0];
     const newScope = { ...scope };
 
-    obj['children'] = obj[tagName];
+    obj['children'] = obj[tagName] ?? [];
     delete obj[tagName];
-
-    if (obj['children'].length === 1 && obj['children'][0]['#text']) {
+    if (obj['children'].length === 1 && typeof obj['children'][0]['#text'] !=='undefined') {
         // This is a text entry and not a child
         obj['text'] = obj['children'][0]['#text'];
         obj['children'] = [];
@@ -45,7 +44,7 @@ function CalculateNS(obj: any, scope?: Scope) {
 
 
     const text = obj['#text'];
-    if (text) {
+    if (typeof text !=='undefined') {
         obj['text'] = ['#text'];
         delete obj['#text'];
     }
@@ -68,7 +67,6 @@ function CalculateNS(obj: any, scope?: Scope) {
     } else {
         obj['attributes'] = {}
     }
-
 
     obj['name'] = getTagname(tagName, newScope, false);
     obj['scope'] = newScope;

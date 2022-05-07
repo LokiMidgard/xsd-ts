@@ -1,6 +1,6 @@
 import { parseXml, Xml } from "./parse-xml.js";
-import { filterUndefined } from "./xsd.js";
 import fetch from 'node-fetch';
+import { filterUndefined } from "./utils.js";
 
 
 export async function downloadXsd(uri: string): Promise<Xml[]> {

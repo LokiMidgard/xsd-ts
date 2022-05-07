@@ -4,7 +4,7 @@ import { isPromise } from "util/types"
 
 import Depot from "./Depot.js";
 import { getTagname, TagName, Xml } from "./parse-xml.js";
-import { makePromise } from "./utils.js";
+import { DeepPromise, filterUndefined, makePromise, waitAll } from "./utils.js";
 
 const attributeDepot = new Depot<TagName, DeepPromise<attribute>>(name => name.local + '#' + name.namespace);
 const attributeGroupDepot = new Depot<TagName, DeepPromise<attribute[]>>(name => name.local + '#' + name.namespace);
@@ -22,6 +22,7 @@ export const builtInXsdtypes = {
     'boolean': 'boolean',
     'float': 'number',
     'positiveInteger': 'number',
+    'nonNegativeInteger': 'number',
 } as const;
 
 
@@ -33,182 +34,112 @@ Object.entries(builtInXsdtypes).map(entry => initDefaultTypes(...entry))
 
 
 
-type Occurence = {
-    minOccurance?: number,
-    maxOccurance?: number,
+export type Occurence = {
+    minOccurance: number,
+    maxOccurance: number | 'unbounded',
 }
 
-type sequence = {
+export type sequence = {
     type: 'sequence'
     occurence: Occurence,
     content: (container | element)[],
 }
 
-type all = {
+export type all = {
     type: 'all'
     occurence: Occurence,
     content: (container | element)[],
 }
-type choise = {
+export type choise = {
     type: 'choise'
     occurence: Occurence,
     content: (container | element)[],
 }
-type simpleContent = {
+export type simpleContent = {
     type: 'simpleContent',
     base: complexType | simpleType,
 }
-type container = sequence | all | choise;
+export type container = sequence | all | choise;
 
-type attribute = {
+export type attribute = {
+    type: 'attribute'
     name: TagName,
     optional: boolean,
     default: any
     simpleType: simpleType,
 }
 
-type complexType = {
+export type complexType = {
     type: 'complexType',
+    name?: TagName,
     content: container | simpleContent | undefined,
     attributes: attribute[],
 }
 
-type simpleType = simpleTypeList | simpleTypeRestriction | simpleTypeUnion | nativeType;
+export type simpleType = simpleTypeList | simpleTypeRestriction | simpleTypeUnion | nativeType;
 
-type nativeType = {
+export type nativeType = {
     type: 'simpleType',
     subType: 'native'
+    name?: TagName,
     base: 'string' | 'number' | 'boolean'
-    original: 'int' | 'integer' | 'long' | 'string' | 'token' | 'boolean' | 'float'
+    original: 'int' | 'integer' | 'long' | 'string' | 'token' | 'boolean' | 'float' | 'positiveInteger'
 }
 
-type simpleTypeList = {
+export type simpleTypeList = {
     type: 'simpleType',
+    subType: 'list',
+    name?: TagName,
 }
-type simpleTypeRestriction = simpleTypeRestrictionEnumeration | simpleTypeRestrictionPattern | simpleTypeRestrictionNumber;
-
-type simpleTypeRestrictionEnumeration = {
+export type simpleTypeRestriction = simpleTypeRestrictionEnumeration | simpleTypeRestrictionPattern | simpleTypeRestrictionNumber | simpleTypeRestrictionSimple
+export type simpleTypeRestrictionEnumeration = {
     type: 'simpleType',
     subType: 'restriction'
     subSubType: 'enumeration'
+    name?: TagName,
     baseType: simpleType,
     values: any[]
 }
 
-type simpleTypeRestrictionSimple = {
+export type simpleTypeRestrictionSimple = {
     type: 'simpleType',
     subType: 'restriction'
     subSubType: 'simple'
+    name?: TagName,
     baseType: simpleType,
 }
 
-type simpleTypeRestrictionPattern = {
+export type simpleTypeRestrictionPattern = {
     type: 'simpleType',
     subType: 'restriction'
     subSubType: 'pattern'
+    name?: TagName,
     pattern: RegExp
 }
-type simpleTypeRestrictionNumber = {
+export type simpleTypeRestrictionNumber = {
     type: 'simpleType',
     subType: 'restriction'
     subSubType: 'Number'
+    name?: TagName,
     minInclusive?: number,
     minExclusive?: number,
     maxExclusive?: number,
     maxInclusive?: number,
 }
-type simpleTypeUnion = {
+export type simpleTypeUnion = {
     type: 'simpleType',
     subType: 'union',
+    name?: TagName,
     unions: simpleType[];
 }
 
-type element = {
+export type element = {
     type: 'element',
     content: complexType | simpleType | undefined,
     name: TagName,
     occurence: Occurence,
 }
 
-export type DeepPromise<T> = T extends Promise<any>
-    ? T
-    : T extends object ? Promise<{
-        [P in keyof T]: DeepPromise<T[P]>;
-    }> | {
-        [P in keyof T]: DeepPromise<T[P]>;
-    } : Promise<T> | T;
-
-export type WaitAlll<T> = T extends Promise<infer K>
-    ? WaitAlll<K>
-    : T extends Array<infer J>
-    ? Array<WaitAlll<J>>
-    : T extends object ? {
-        [P in keyof T]: WaitAlll<T[P]>;
-    } : T;
-
-
-export function waitAll<T>(obj: T): Promise<WaitAlll<T>> {
-    return waitAllInternal(obj, undefined);
-}
-
-async function waitAllInternal<T>(obj: T, depth?: number): Promise<WaitAlll<T>> {
-    if (typeof depth === 'undefined') {
-        const result = await waitAllInternal(obj, 0);
-
-        function removeVisited(obj: any) {
-            if (Array.isArray(obj)) {
-                obj.forEach(x => removeVisited(x));
-            } else if (typeof obj === 'object') {
-                if (obj['#visited']) {
-                    delete obj['#visited'];
-                    for (const key of Object.keys(obj)) {
-                        removeVisited(obj[key]);
-                    }
-                }
-            }
-        }
-        removeVisited(result); // this does not change result?
-
-        return result;
-    }
-
-
-    if (isPromise(obj)) {
-        const promise = await waitAllInternal(await obj, depth + 1) as WaitAlll<T>;
-        return promise;
-    }
-
-    if (Array.isArray(obj)) {
-        const array = await Promise.all(obj.map(x => waitAllInternal(x, depth + 1))) as WaitAlll<T>;
-        return array;
-    }
-    else if (typeof obj === 'object') {
-        if ((obj as any)['#visited']) {
-            // already visted
-            return obj as any;
-        }
-        (obj as any)['#visited'] = true;
-        for (const key of Object.keys(obj) as Array<keyof T>) {
-            const value: any = (obj as any)[key];
-            (obj as any)[key] = await waitAllInternal(value as any, depth + 1);
-        }
-        return obj as any;
-    } else {
-
-        return obj as WaitAlll<T>;
-    }
-
-
-}
-
-function delay(ms: number) {
-    const wait = new Promise<void>(resolve => {
-        setTimeout(() => {
-            resolve();
-        }, ms);
-    });
-    return wait;
-}
 
 export async function parseSchemas(schemas: Xml[]): Promise<element[]> {
 
@@ -226,7 +157,7 @@ export async function parseSchemas(schemas: Xml[]): Promise<element[]> {
 
     const result = waitAll(elementDepot.getAll());
     const elements = await result;
-    return elements;
+    return elements as any;
 
 
 }
@@ -234,7 +165,18 @@ export async function parseSchemas(schemas: Xml[]): Promise<element[]> {
 function getElement(xml: Xml, targetNamespace: string, isRoot: boolean): DeepPromise<element> | undefined {
     if (xml.name.local === 'element' && xml.name.namespace === 'http://www.w3.org/2001/XMLSchema') {
         if (xml.attributes['ref']) {
-            return elementDepot.getType(getTagname(xml.attributes['ref'], xml.scope)) as DeepPromise<element>;
+
+            // return elementDepot.getType(getTagname(xml.attributes['ref'], xml.scope)) as DeepPromise<element>;
+            return makePromise<element>(async resolve => {
+
+                const x = await elementDepot.getType(getTagname(xml.attributes['ref'], xml.scope));
+
+
+                const newLocal = overrideOccurence(xml, (x) as any);
+                resolve(newLocal);
+
+            }, 'Wrapping ' + xml.attributes['ref']) as any;
+
         }
         const name = xml.attributes['name'];
         if (xml.attributes['type']) {
@@ -250,7 +192,7 @@ function getElement(xml: Xml, targetNamespace: string, isRoot: boolean): DeepPro
             }, `getElement-${name}- ${xml.attributes['type']}`).catch(x => {
                 console.error(`Faild Promise ${x}`);
                 throw Error(`Faild Promise ${x}`);
-            });
+            }) as any;
             if (isRoot) {
                 elementDepot.setType({ local: xml.attributes['name'], namespace: targetNamespace }, r);
             }
@@ -290,8 +232,10 @@ function getElement(xml: Xml, targetNamespace: string, isRoot: boolean): DeepPro
 
 function getComplexType(xml: Xml, targetNamespace: string): DeepPromise<complexType> | undefined {
     if (xml.name.local === 'complexType' && xml.name.namespace === 'http://www.w3.org/2001/XMLSchema') {
-        const first = xml.children.filter(x => x.name.local !== 'annotation' || x.name.namespace !== 'http://www.w3.org/2001/XMLSchema')[0];
-        const attributes = xml.children.filter(x => x.name.local !== 'annotation' || x.name.namespace !== 'http://www.w3.org/2001/XMLSchema').slice(1);
+        const first = xml.children.filter(x => (x.name.local !== 'annotation' && x.name.local !== 'attribute' && x.name.local !== 'attributeGroup') || x.name.namespace !== 'http://www.w3.org/2001/XMLSchema')[0];
+        // const attributes2 = xml.children.filter(x => x.name.local !== 'annotation' || x.name.namespace !== 'http://www.w3.org/2001/XMLSchema').slice(1);
+        let attributes = xml.children.filter(x => (x.name.local === 'attribute' || x.name.local === 'attributeGroup') && x.name.namespace == 'http://www.w3.org/2001/XMLSchema');
+
         // the first is either seqence, choise, or all.
 
         function getContainerOrElement(xml: Xml): DeepPromise<container | element> | undefined {
@@ -310,7 +254,9 @@ function getComplexType(xml: Xml, targetNamespace: string): DeepPromise<complexT
 
         }
         function getContainer(xml: Xml): DeepPromise<container> | undefined {
-
+            if (typeof xml === 'undefined') {
+                return undefined;
+            }
             if (xml.name.local === 'choice' && xml.name.namespace === 'http://www.w3.org/2001/XMLSchema') {
                 const content = filterUndefined(xml.children.map(x => getContainerOrElement(x)));
 
@@ -328,7 +274,7 @@ function getComplexType(xml: Xml, targetNamespace: string): DeepPromise<complexT
                     content: content,
                     occurence: {
                         maxOccurance: xml.attributes['maxOccurs'] === 'unbounded'
-                            ? undefined
+                            ? 'unbounded'
                             : typeof xml.attributes['maxOccurs'] === 'undefined'
                                 ? 1
                                 : parseInt(xml.attributes['maxOccurs']),
@@ -348,7 +294,7 @@ function getComplexType(xml: Xml, targetNamespace: string): DeepPromise<complexT
                     content: content,
                     occurence: {
                         maxOccurance: xml.attributes['maxOccurs'] === 'unbounded'
-                            ? undefined
+                            ? 'unbounded'
                             : typeof xml.attributes['maxOccurs'] === 'undefined'
                                 ? 1
                                 : parseInt(xml.attributes['maxOccurs']),
@@ -371,6 +317,9 @@ function getComplexType(xml: Xml, targetNamespace: string): DeepPromise<complexT
         }
 
         function getSimpleContent(xml: Xml): DeepPromise<simpleContent> | undefined {
+            if (typeof xml === 'undefined') {
+                return undefined;
+            }
             if (xml.name.local === 'simpleContent' && xml.name.namespace === 'http://www.w3.org/2001/XMLSchema') {
                 const withoutAnotations = xml.children.filter(x => x.name.local !== 'annotation' || x.name.namespace !== 'http://www.w3.org/2001/XMLSchema');
 
@@ -382,7 +331,7 @@ function getComplexType(xml: Xml, targetNamespace: string): DeepPromise<complexT
                     const r: DeepPromise<simpleContent> = makePromise<simpleContent>(async resolve => {
                         const base = complexOrSimpleTypeDepot.getType(getTagname(withoutAnotations[0].attributes['base'], xml.scope));
                         const r: simpleContent = {
-                            base: await waitAll(base),
+                            base: await waitAll(base) as any,
                             type: "simpleContent"
                         }
                         resolve(r);
@@ -435,10 +384,35 @@ function getComplexType(xml: Xml, targetNamespace: string): DeepPromise<complexT
     }
 }
 
-function parseOccurence(xml: Xml, targetNamespace: string): Occurence {
-    return {
+function overrideOccurence(xml: Xml, element: element): element {
+    if (typeof xml.attributes['maxOccurs'] === 'undefined' && typeof xml.attributes['minOccurs'] === 'undefined') {
+        return element;
+    }
+    const newLocal: Occurence = {
         maxOccurance: xml.attributes['maxOccurs'] === 'unbounded'
-            ? undefined
+            ? 'unbounded'
+            : typeof xml.attributes['maxOccurs'] === 'undefined'
+                ? element.occurence.maxOccurance
+                : parseInt(xml.attributes['maxOccurs']),
+
+        minOccurance: typeof xml.attributes['minOccurs'] === 'undefined'
+            ? element.occurence.minOccurance
+            : parseInt(xml.attributes['minOccurs']),
+    };
+    return {
+        type: 'element',
+        content: element.content,
+        occurence: newLocal,
+        name: element.name
+    };
+
+
+}
+
+function parseOccurence(xml: Xml, targetNamespace: string): Occurence {
+    const newLocal: Occurence = {
+        maxOccurance: xml.attributes['maxOccurs'] === 'unbounded'
+            ? 'unbounded'
             : typeof xml.attributes['maxOccurs'] === 'undefined'
                 ? 1
                 : parseInt(xml.attributes['maxOccurs']),
@@ -447,6 +421,9 @@ function parseOccurence(xml: Xml, targetNamespace: string): Occurence {
             ? 1
             : parseInt(xml.attributes['minOccurs']),
     };
+
+
+    return newLocal;
 }
 
 function getSimpleType(xml: Xml, targetNamespace: string): DeepPromise<simpleType> | undefined {
@@ -467,7 +444,7 @@ function getSimpleType(xml: Xml, targetNamespace: string): DeepPromise<simpleTyp
                         subSubType: "simple",
                         subType: "restriction",
                         type: "simpleType",
-                        baseType: await waitAll(simpleTypeDepot.getType(getTagname(single.attributes['base'], xml.scope)))
+                        baseType: await waitAll(simpleTypeDepot.getType(getTagname(single.attributes['base'], xml.scope))) as any
                     }
                     resolve(tmp);
                 }, 'getSimpleType-restriction-simple').catch(x => {
@@ -494,7 +471,7 @@ function getSimpleType(xml: Xml, targetNamespace: string): DeepPromise<simpleTyp
                         subSubType: "enumeration",
                         subType: "restriction",
                         type: "simpleType",
-                        baseType: await waitAll(simpleTypeDepot.getType(getTagname(single.attributes['base'], xml.scope))),
+                        baseType: await waitAll(simpleTypeDepot.getType(getTagname(single.attributes['base'], xml.scope))) as any,
                         values: values
                     }
                     resolve(tmp);
@@ -567,11 +544,22 @@ function getSimpleType(xml: Xml, targetNamespace: string): DeepPromise<simpleTyp
                 throw Error('Unknown simple Restriction');
             }
         } else if (single.name.local === 'union' && single.name.namespace === 'http://www.w3.org/2001/XMLSchema') {
-            const r: DeepPromise<simpleType> = {
-                type: 'simpleType',
-                subType: 'union',
-                unions: filterUndefined(single.children.map(x => getSimpleType(x, targetNamespace)))
-            }
+
+            const r = makePromise<DeepPromise<simpleType>>(async resolve => {
+
+
+                const childrenElements = filterUndefined(single.children.map(x => getSimpleType(x, targetNamespace)));
+                const memberTypes = single.attributes['memberTypes'];
+                const unionElements = typeof memberTypes === 'undefined'
+                    ? childrenElements
+                    : childrenElements.concat(await simpleTypeDepot.getType(getTagname(memberTypes, xml.scope)));
+                const r: DeepPromise<simpleType> = {
+                    type: 'simpleType',
+                    subType: 'union',
+                    unions: unionElements
+                }
+                resolve(r);
+            }, 'simpletype') as DeepPromise<simpleType>;
             if (xml.attributes['name']) {
                 simpleTypeDepot.setType({ local: xml.attributes['name'], namespace: targetNamespace }, r);
                 complexOrSimpleTypeDepot.setType({ local: xml.attributes['name'], namespace: targetNamespace }, r);
@@ -605,19 +593,19 @@ function getAttribute(xml: Xml, targetNamespace: string, isRoot: boolean): DeepP
                 if (xml.attributes['type']) {
                     const fullName = getTagname(xml.attributes['type'], xml.scope);
                     const found = await waitAll(simpleTypeDepot.getType(fullName));
-                    resolve(found);
+                    resolve(found as any);
                     return;
                 }
 
                 const possibleSimpleTypes = (await Promise.all(xml.children.map(async x => await getSimpleType(x, targetNamespace)))).filter(x => x);
                 const actualType = possibleSimpleTypes[0]
                 if (actualType) {
-                    resolve(await waitAll(actualType));
+                    resolve(await waitAll(actualType) as any);
                     return;
                 }
                 // console.error(`No Types ${JSON.stringify(xml, undefined, ' ')}`);
                 // console.info('Fallback string');
-                resolve(await waitAll(simpleTypeDepot.getType(getTagname('int', undefined!))))
+                resolve(await waitAll(simpleTypeDepot.getType(getTagname('string', undefined!))) as any)
                 return;
             }, 'getAttribute').catch(x => {
                 console.error(`Faild Promise ${x}`);
@@ -627,8 +615,9 @@ function getAttribute(xml: Xml, targetNamespace: string, isRoot: boolean): DeepP
             const r: DeepPromise<attribute> = {
                 default: xml.attributes['default'],
                 name: tagName,
+                type: 'attribute',
                 optional: use === 'optional',
-                simpleType: type
+                simpleType: type as any
             }
             if (isRoot) {
                 attributeDepot.setType(tagName, r);
@@ -645,7 +634,7 @@ function getAttributes(xmls: Xml[], targetNamespace: string): DeepPromise<attrib
     const r: DeepPromise<attribute[]> = makePromise<attribute[]>(async resolve => {
         const attr = await waitAll(filterUndefined(xmls.map(x => getAttribute(x, targetNamespace, false))))
         const groups = (await waitAll(filterUndefined(xmls.map(x => getAttributeGrupe(x, targetNamespace, false))))).flatMap(x => x);
-        resolve(attr.concat(groups));
+        resolve(attr.concat(groups) as any);
     }, 'getAttributes').catch(x => {
         console.error(`Faild Promise ${x}`);
         throw Error(`Faild Promise ${x}`);
@@ -665,7 +654,7 @@ function getAttributeGrupe(xml: Xml, targetNamespace: string, isRoot: boolean): 
             const r: DeepPromise<attribute[]> = makePromise<attribute[]>(async resolve => {
                 const attr = await waitAll(filterUndefined(xml.children.map(x => getAttribute(x, targetNamespace, false))))
                 const groups = (await waitAll(filterUndefined(xml.children.map(x => getAttributeGrupe(x, targetNamespace, false))))).flatMap(x => x);
-                resolve(attr.concat(groups));
+                resolve(attr.concat(groups) as any);
             }, 'getAttributeGrupe').catch(x => {
                 console.error(`Faild Promise ${x}`);
                 throw Error(`Faild Promise ${x}`);
@@ -679,10 +668,5 @@ function getAttributeGrupe(xml: Xml, targetNamespace: string, isRoot: boolean): 
     else {
         return undefined;
     }
-}
-
-
-export function filterUndefined<T>(v: Array<T | undefined>): Array<T> {
-    return v.filter(x => typeof x !== 'undefined') as any;
 }
 

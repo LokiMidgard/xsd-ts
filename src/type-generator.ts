@@ -16,7 +16,13 @@ export async function generateTypes(elements: element[]) {
     for (const element of elements) {
         generateType(element, true, types);
     }
-
+    types['SubArray<T>'] = `
+    {
+        [Property in keyof T]-?: T[Property] extends Array<infer K>
+        ? T[Property] | undefined
+        : Array<T[Property]> | undefined;
+    }
+`
     return types;
 
 }
@@ -103,7 +109,7 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
         return obj.content.map(x => generateType(x, true, types)).reduce((p, c) => p === '' ? c : `${p} & ${c}`, '')
     } else if (obj.type === 'choise') {
         if (obj.occurence.maxOccurance === 'unbounded' || obj.occurence.maxOccurance > 1) {
-            return '(' + obj.content.map(x => generateType(x, true, types)).reduce((p, c) => p === '' ? c : `${p} | ${c}`, '') + ')[]'
+            return '(' + obj.content.map(x => generateType(x, true, types)).reduce((p, c) => p === '' ? `SubArray<${c}>` : `${p} & SubArray<${c}>`, '') + ')'
         }
         return obj.content.map(x => generateType(x, true, types)).reduce((p, c) => p === '' ? c : `${p} | ${c}`, '')
     } else if (obj.type === 'sequence') {

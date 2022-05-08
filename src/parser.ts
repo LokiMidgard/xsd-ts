@@ -129,16 +129,25 @@ export class Parser<T> {
             if (result === null) {
                 // console.log(`Did NOT find in CHoice `)
             }
+
             return result;
         }
 
-        if (element.occurence.maxOccurance > 1) {
+        if (xml.name.local == 'Level' && xml.children && xml.children.length === 3) {
+            console.log(xml)
+            console.log(element)
+        }
+
+        if (element.occurence.maxOccurance === 'unbounded' || element.occurence.maxOccurance > 1) {
             const result: any = {};
+
+
 
             while (true) {
 
                 const partialResult = parseChoiceInternal(xml, element, index);
-                if (partialResult) {
+                if (partialResult !== null) {
+
                     for (const key of Object.keys(partialResult)) {
                         if (typeof result[key] === 'undefined') {
                             result[key] = [];
@@ -146,9 +155,18 @@ export class Parser<T> {
                         (result[key] as any[]).push(partialResult[key] as any);
                     }
                 }
-                if (partialResult === null) {
+                const numberofElements = Object.values(result).map(x => (x as any[]).length).reduce((p, c) => p + c, 0);
+                if (partialResult === null || numberofElements === element.occurence.maxOccurance) {
                     break;
                 }
+            }
+
+            const numberofElements = Object.values(result).map(x => (x as any[]).length).reduce((p, c) => p + c, 0);
+            if (numberofElements < element.occurence.minOccurance || numberofElements > element.occurence.maxOccurance) {
+                return null;
+            }
+            else {
+                return result;
             }
 
         } else if (element.occurence.minOccurance === 0) {
@@ -442,7 +460,7 @@ export class Parser<T> {
                         return null;
                     }
                     const f = parseFloat(str);
-                    if (!element.values.includes(f)) {
+                    if (!element.values.includes(f) && !element.values.includes(str)) {
                         return null;
                     }
                     return f;

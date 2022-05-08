@@ -42,10 +42,11 @@ async function main() {
     console.log('parse')
     const parsed = parser.parse(xml) as Daten;
     console.log('write')
-    await fs.promises.writeFile('tmp.json', JSON.stringify(parsed))
+    await fs.promises.writeFile('tmp.json', JSON.stringify(parsed, undefined, ' '))
 
+    // console.log(parsed.Daten.Talente.Talent[0].Probe.Mut.length);
     
-    console.log( parsed.Daten.Ausstattung.Waffen.Fernkampfwaffe[0].Reichweiten.Reichweite[0].Distanz);
+    // console.log( parsed.Daten.Ausstattung.Waffen.Fernkampfwaffe[0].Reichweiten.Reichweite[0].Distanz);
 
 
     // const x: Daten = {

@@ -1,6 +1,6 @@
-import { parseXml, Xml } from "./parse-xml.js";
+import { parseXml, Xml } from "xml-ns-parser";
 import fetch from 'node-fetch';
-import { filterUndefined } from "./utils.js";
+import { filterUndefined } from "./utils";
 
 
 export async function downloadXsd(uri: string): Promise<Xml[]> {
@@ -18,7 +18,7 @@ async function GetSchemaXml(uri: string, map: Record<string, Promise<Xml> | unde
     const xml = parseXml(await response.text())
 
     if (xml.name.local !== 'schema' || xml.name.namespace !== 'http://www.w3.org/2001/XMLSchema') {
-        console.log(xml)
+        console.error(xml)
         throw Error('No Schema');
     }
     if (!map[xml.attributes['targetNamespace']]) {

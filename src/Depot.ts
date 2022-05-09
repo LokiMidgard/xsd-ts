@@ -1,4 +1,4 @@
-import { filterUndefined, makePromise } from "./utils.js";
+import { filterUndefined, makePromise } from "./utils";
 
 
 export default class Depot<TKey, TValue> {

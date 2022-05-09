@@ -1,6 +1,6 @@
 import { stringify } from "querystring";
-import { visitor } from "./utils.js";
-import { element, attribute, complexType, simpleType, container, simpleContent } from "./xsd.js";
+import { visitor } from "./utils";
+import { element, attribute, complexType, simpleType, container, simpleContent } from "./xsd";
 
 
 export async function generateTypes(elements: element[]) {

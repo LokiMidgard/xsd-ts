@@ -1,10 +1,9 @@
 
-import stringify from "json-stringify-safe";
-import { isPromise } from "util/types"
 
-import Depot from "./Depot.js";
-import { getTagname, TagName, Xml } from "./parse-xml.js";
-import { DeepPromise, filterUndefined, makePromise, waitAll } from "./utils.js";
+import Depot from "./Depot";
+
+import { getTagname, TagName, Xml } from "xml-ns-parser";
+import { DeepPromise, filterUndefined, makePromise, waitAll } from "./utils";
 
 const attributeDepot = new Depot<TagName, DeepPromise<attribute>>(name => name.local + '#' + name.namespace);
 const attributeGroupDepot = new Depot<TagName, DeepPromise<attribute[]>>(name => name.local + '#' + name.namespace);
@@ -27,8 +26,8 @@ export const builtInXsdtypes = {
 
 
 function initDefaultTypes(name: string, mapedType: 'string' | 'boolean' | 'number') {
-    simpleTypeDepot.setType(getTagname(name, undefined!), { base: mapedType, original: name, subType: 'native', type: "simpleType" } as nativeType)
-    complexOrSimpleTypeDepot.setType(getTagname(name, undefined!), { base: mapedType, original: name, subType: 'native', type: "simpleType" } as nativeType)
+    simpleTypeDepot.setType({ local: name, namespace: 'http://www.w3.org/2001/XMLSchema' }, { base: mapedType, original: name, subType: 'native', type: "simpleType" } as nativeType)
+    complexOrSimpleTypeDepot.setType({ local: name, namespace: 'http://www.w3.org/2001/XMLSchema' }, { base: mapedType, original: name, subType: 'native', type: "simpleType" } as nativeType)
 }
 Object.entries(builtInXsdtypes).map(entry => initDefaultTypes(...entry))
 
@@ -605,7 +604,7 @@ function getAttribute(xml: Xml, targetNamespace: string, isRoot: boolean): DeepP
                 }
                 // console.error(`No Types ${JSON.stringify(xml, undefined, ' ')}`);
                 // console.info('Fallback string');
-                resolve(await waitAll(simpleTypeDepot.getType(getTagname('string', undefined!))) as any)
+                resolve(await waitAll(simpleTypeDepot.getType({ local: 'string', namespace: 'http://www.w3.org/2001/XMLSchema' })) as any)
                 return;
             }, 'getAttribute').catch(x => {
                 console.error(`Faild Promise ${x}`);

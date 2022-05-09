@@ -1,5 +1,5 @@
-import { Xml, parseXml } from "./parse-xml.js";
-import { all, choise, complexType, element, sequence, simpleContent, simpleType } from "./xsd.js";
+import { Xml, parseXml } from "xml-ns-parser";
+import { all, choise, complexType, element, sequence, simpleContent, simpleType } from "./xsd";
 
 
 export class Parser<T> {
@@ -131,11 +131,6 @@ export class Parser<T> {
             }
 
             return result;
-        }
-
-        if (xml.name.local == 'Level' && xml.children && xml.children.length === 3) {
-            console.log(xml)
-            console.log(element)
         }
 
         if (element.occurence.maxOccurance === 'unbounded' || element.occurence.maxOccurance > 1) {
@@ -388,7 +383,7 @@ export class Parser<T> {
                 if (att.default !== undefined) {
                     parsed = att.default;
                 } else if (!att.optional) {
-                    console.log(`Missing required attribute ${JSON.stringify(att)}`)
+                    console.log(`Missing required attribute ${JSON.stringify(att)}\n\t${JSON.stringify(xml.attributes)}`)
                     return null;
                 }
 

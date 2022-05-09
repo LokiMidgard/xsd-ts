@@ -1,1 +1,6 @@
 node_modules/
+/dist/*
+!/dist/.npmignore
+
+/tmp.json
+/tmp.ts

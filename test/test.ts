@@ -6819,14 +6819,14 @@ describe('Parse', () => {
         const elements = (await parsing);
         const types = await generateTypes(elements);
 
-        // await fs.promises.writeFile('tmp.ts', Object.entries(types).map(x => ` export type ${x[0]} = ${x[1]}\n`))
+         await fs.promises.writeFile('tmp.ts', Object.entries(types).map(x => ` export type ${x[0]} = ${x[1]}\n`))
 
         const parser = new Parser<any>(elements.filter(x => x.name.local === 'Daten')[0]);
         const response = await fetch(uri2);
         const xml = await response.text();
 
         const parsed = parser.parse(xml);
-        // await fs.promises.writeFile('tmp.json', JSON.stringify(parsed, undefined, ' '))
+         await fs.promises.writeFile('tmp.json', JSON.stringify(parsed, undefined, ' '))
         expect(parsed).like(expected);
     }).timeout(10000);
 

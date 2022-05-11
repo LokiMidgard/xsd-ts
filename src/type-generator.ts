@@ -15,6 +15,9 @@ export async function generateTypes(elements: element[]): Promise<TypeMapping> {
             obj.id = `id${id++}`;
         }
     })
+
+
+
     const types: Record<string, string> = {};
     for (const element of elements) {
         generateType(element, true, types);
@@ -37,23 +40,23 @@ type WithId<T> = T extends { name?: { local: string, namespace: string } }
 
 function writeType(obj: WithId<element | attribute | complexType | simpleType>, types: Record<string, string>) {
 
-    if (types[obj.name.id]) {
+    const id = getId(obj);
+    if (types[id]) {
         return;
     }
-    types[obj.name.id] = 'X';
+    types[id] = 'X';
 
-    const type = generateType(obj, false, types);
-
-
-
-    types[obj.name.local] = obj.name.id;
-    types[obj.name.id] = type;
+    if (obj !== undefined) {
+        const type = generateType(obj, false, types);
+        types[obj.name.local] = id;
+        types[id] = type;
+    }
 }
 
 function generateType(obj: element | attribute | complexType | simpleType | container | simpleContent | undefined, useId: boolean, types: Record<string, string>): string {
 
     if (typeof obj === 'undefined') {
-        return '{}'
+        return 'Record<string, never>'
     }
     const withId = obj as WithId<element | attribute | complexType | simpleType>;
     if (withId.name && useId) {
@@ -61,7 +64,7 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
         if (!types[withId.name.id]) {
             writeType(withId, types)
         }
-        return withId.name.id; // already created
+        return getId(withId); // already created
     }
 
 
@@ -125,4 +128,9 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
     }
 
     throw Error('Not supported type' + JSON.stringify(obj));
+}
+
+function getId(withId: WithId<element | attribute | complexType | simpleType>): string {
+ 
+    return withId.name.id;
 }

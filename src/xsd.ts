@@ -136,14 +136,14 @@ export type simpleTypeUnion = {
 export type element = {
     type: 'element',
     content: complexType | simpleType | undefined,
-    name: TagName,
+    name: TagName ,
     occurence: Occurence,
 }
 
 
 export default async function parseSchemas(schemas: (Xml[]) | string): Promise<element[]> {
 
-    if(typeof schemas ==='string'){
+    if (typeof schemas === 'string') {
         return parseSchemas(await downloadXsd(schemas))
     }
 
@@ -190,7 +190,7 @@ function getElement(xml: Xml, targetNamespace: string, isRoot: boolean): DeepPro
                     name: { local: name, namespace: targetNamespace },
                     content: await loadedType,
                     type: 'element',
-                    occurence: parseOccurence(xml, targetNamespace)
+                    occurence: parseOccurence(xml)
                 }
                 resolve(x as any); // this is ok, since it will be asigned to a deep promise. 
             }, `getElement-${name}- ${xml.attributes['type']}`).catch(x => {
@@ -220,7 +220,7 @@ function getElement(xml: Xml, targetNamespace: string, isRoot: boolean): DeepPro
         const r: DeepPromise<element> = {
             type: 'element',
             name: { local: name, namespace: targetNamespace },
-            occurence: parseOccurence(xml, targetNamespace),
+            occurence: parseOccurence(xml),
             content: content
         }
         if (isRoot) {
@@ -267,7 +267,7 @@ function getComplexType(xml: Xml, targetNamespace: string): DeepPromise<complexT
                 const r: DeepPromise<choise> = {
                     type: 'choise',
                     content: content,
-                    occurence: parseOccurence(xml, targetNamespace)
+                    occurence: parseOccurence(xml)
                 };
 
                 return r;
@@ -392,28 +392,21 @@ function overrideOccurence(xml: Xml, element: element): element {
     if (typeof xml.attributes['maxOccurs'] === 'undefined' && typeof xml.attributes['minOccurs'] === 'undefined') {
         return element;
     }
-    const newLocal: Occurence = {
-        maxOccurance: xml.attributes['maxOccurs'] === 'unbounded'
-            ? 'unbounded'
-            : typeof xml.attributes['maxOccurs'] === 'undefined'
-                ? element.occurence.maxOccurance
-                : parseInt(xml.attributes['maxOccurs']),
-
-        minOccurance: typeof xml.attributes['minOccurs'] === 'undefined'
-            ? element.occurence.minOccurance
-            : parseInt(xml.attributes['minOccurs']),
-    };
+    const newLocal: Occurence = parseOccurence(xml);
     return {
         type: 'element',
         content: element.content,
         occurence: newLocal,
-        name: element.name
+        name: {
+            local: element.name.local,
+            namespace: element.name.namespace,
+        }
     };
 
 
 }
 
-function parseOccurence(xml: Xml, targetNamespace: string): Occurence {
+function parseOccurence(xml: Xml): Occurence {
     const newLocal: Occurence = {
         maxOccurance: xml.attributes['maxOccurs'] === 'unbounded'
             ? 'unbounded'

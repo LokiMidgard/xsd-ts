@@ -4,13 +4,11 @@ import * as mocha from 'mocha';
 import * as chai from 'chai';
 import chaiLike from 'chai-like'
 
-import { element, parseSchemas } from './../src/xsd';
+import parseSchemas from './../src/xsd';
 import { downloadXsd } from './../src/download-schema';
-import { waitAll } from './../src/utils';
 import { generateTypes } from './../src/type-generator';
 import path, { parse } from 'path';
 import fetch from 'node-fetch';
-
 import fs from 'fs'
 import { Parser } from './../src/parser';
 
@@ -6818,16 +6816,8 @@ describe('Parse', () => {
         const uri2 = 'https://nota-game.github.io/Content/vNext/data/nota.xml';
         const schemas = await downloadXsd(uri);
         const parsing = parseSchemas(schemas);
-
-
-
-        const elements = await waitAll(parsing) as any as element[];
-
+        const elements = (await parsing);
         const types = await generateTypes(elements);
-
-
-
-
 
         // await fs.promises.writeFile('tmp.ts', Object.entries(types).map(x => ` export type ${x[0]} = ${x[1]}\n`))
 
@@ -6837,16 +6827,7 @@ describe('Parse', () => {
 
         const parsed = parser.parse(xml);
         // await fs.promises.writeFile('tmp.json', JSON.stringify(parsed, undefined, ' '))
-
-
         expect(parsed).like(expected);
-
-
-
-
-
-
-
     }).timeout(10000);
 
 });

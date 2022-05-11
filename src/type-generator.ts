@@ -2,8 +2,11 @@ import { stringify } from "querystring";
 import { visitor } from "./utils";
 import { element, attribute, complexType, simpleType, container, simpleContent } from "./xsd";
 
+export type TypeMapping = {
+    [name: string]: string
+}
 
-export async function generateTypes(elements: element[]) {
+export async function generateTypes(elements: element[]): Promise<TypeMapping> {
 
     // first make everyone an uniqe id
     let id = 1;

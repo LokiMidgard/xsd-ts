@@ -1,6 +1,6 @@
 {
   "name": "xsd-ts",
-  "version": "0.0.1",
+  "version": "0.0.5",
   "description": "A tool to create xml parser/validator from xsd",
   "type": "commonjs",
   "scripts": {
@@ -8,8 +8,8 @@
     "prepublish": "npm run build",
     "test": "ts-mocha  -p tsconfig.json --reporter spec test/**/*.ts"
   },
-  "main": "dist/xsd.js",
-  "typings": "dist/xsd.d.ts",
+  "main": "dist/index.js",
+  "typings": "dist/index.d.ts",
   "files": [
     "dist"
   ],

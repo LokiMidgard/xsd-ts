@@ -4,6 +4,7 @@ import Depot from "./Depot";
 
 import { getTagname, TagName, Xml } from "xml-ns-parser";
 import { DeepPromise, filterUndefined, makePromise, waitAll } from "./utils";
+import { downloadXsd } from "./download-schema";
 
 const attributeDepot = new Depot<TagName, DeepPromise<attribute>>(name => name.local + '#' + name.namespace);
 const attributeGroupDepot = new Depot<TagName, DeepPromise<attribute[]>>(name => name.local + '#' + name.namespace);
@@ -12,7 +13,7 @@ const complexTypeDepot = new Depot<TagName, DeepPromise<complexType>>(name => na
 const complexOrSimpleTypeDepot = new Depot<TagName, DeepPromise<complexType | simpleType>>(name => name.local + '#' + name.namespace);
 const elementDepot = new Depot<TagName, DeepPromise<element>>(name => name.local + '#' + name.namespace);
 
-export const builtInXsdtypes = {
+const builtInXsdtypes = {
     'int': 'number',
     'integer': 'number',
     'long': 'number',
@@ -140,7 +141,11 @@ export type element = {
 }
 
 
-export async function parseSchemas(schemas: Xml[]): Promise<element[]> {
+export default async function parseSchemas(schemas: (Xml[]) | string): Promise<element[]> {
+
+    if(typeof schemas ==='string'){
+        return parseSchemas(await downloadXsd(schemas))
+    }
 
     for (const root of schemas) {
         const targetNamespace = root.attributes['targetNamespace'];

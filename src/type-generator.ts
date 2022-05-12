@@ -124,13 +124,19 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
         }
         return obj.content.map(x => generateType(x, true, types)).reduce((p, c) => p === '' ? c : `${p} & ${c}`, '')
     } else if (obj.type === 'simpleContent') {
-        return generateType(obj.base, true, types);
+        if (obj.attributes.length == 0) {
+            return generateType(obj.base, true, types);
+        } else {
+            const attributeType = obj.attributes.map(x => generateType(x, true, types)).reduce((p, c) => p === '' ? c : `${p} & ${c}`, '');
+            return `{meta:${attributeType}\nvalue :${generateType(obj.base, true, types)}}`;
+        }
+
     }
 
     throw Error('Not supported type' + JSON.stringify(obj));
 }
 
 function getId(withId: WithId<element | attribute | complexType | simpleType>): string {
- 
+
     return withId.name.id;
 }

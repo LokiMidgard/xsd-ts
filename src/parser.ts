@@ -396,11 +396,40 @@ export class Parser<T> {
         return result;
     }
     private parseSimpleContent(xml: Xml, element: simpleContent) {
-        if (element.base.type === 'simpleType') {
-            return this.parseSimpleType(xml, element.base);
-        } else {
-            return this.parseComplexType(xml, element.base);
+        const t = 
+                 (element.base.type === 'simpleType') ?
+                     this.parseSimpleType(xml, element.base)
+                :
+                    this.parseComplexType(xml, element.base);
+                
+if(element.attributes.length==0){
+return t;
+}else{
+    const attributeType : Record<string,string> ={};
+    for (const att of element.attributes) {
+
+        const originalValue = xml.attributes[att.name.local];
+        // if (att.name.local == 'Distanz') {
+        //     console.log(`${JSON.stringify(att)}\n${originalValue}`)
+        // }
+        let parsed = typeof att.simpleType === 'undefined' ? originalValue : this.parseSimpleType(originalValue, att.simpleType);
+        if (parsed === null) {
+            if (att.default !== undefined) {
+                parsed = att.default;
+            } else if (!att.optional) {
+                console.log(`Missing required attribute ${JSON.stringify(att)}\n\t${JSON.stringify(xml.attributes)}`)
+                return null;
+            }
+
         }
+        if (parsed !== null) {
+            attributeType[att.name.local] = parsed;
+        }
+    }
+
+    return {meta:attributeType,value :t};
+
+}
     }
     private parseSimpleType(xml: Xml | string, element: simpleType): any {
         if (typeof xml === 'undefined') {

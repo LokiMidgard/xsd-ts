@@ -13,20 +13,65 @@ const complexTypeDepot = new Depot<TagName, DeepPromise<complexType>>(name => na
 const complexOrSimpleTypeDepot = new Depot<TagName, DeepPromise<complexType | simpleType>>(name => name.local + '#' + name.namespace);
 const elementDepot = new Depot<TagName, DeepPromise<element>>(name => name.local + '#' + name.namespace);
 
+
+
 const builtInXsdtypes = {
+    //numeric types
+    'byte': 'number',
+    'decimal': 'number',
     'int': 'number',
     'integer': 'number',
     'long': 'number',
+    'negativeInteger': 'number',
+    'nonNegativeInteger': 'number',
+    'nonPositiveInteger': 'number',
+    'positiveInteger': 'number',
+    'short': 'number',
+    'unsignedLong': 'number',
+    'unsignedInt': 'number',
+    'unsignedShort': 'number',
+    'unsignedByte': 'number',
+
+    // string types
+    'ENTITIES': 'string',
+    'ENTITY': 'string',
+    'ID': 'string',
+    'IDREF': 'string',
+    'IDREFS': 'string',
+    'language': 'string',
+    'Name': 'string',
+    'NCName': 'string',
+    'NMTOKEN': 'string',
+    'NMTOKENS': 'string',
+    'normalizedString': 'string',
+    'QName': 'string',
     'string': 'string',
     'token': 'string',
-    'boolean': 'boolean',
-    'float': 'number',
-    'positiveInteger': 'number',
-    'nonNegativeInteger': 'number',
-} as const;
+
+    // date time
+    'date': 'date',
+    'dateTime': 'date',
+    'duration': 'date',
+    'gDay': 'date',
+    'gMonth': 'date',
+    'gMonthDay': 'date',
+    'gYear': 'date',
+    'gYearMonth': 'date',
+    'time': 'date',
+
+    // misc types
+    'anyURI':'string',
+    'base64Binary':'byte[]',
+    'boolean':'boolean',
+    'double':'number',
+    'float':'number',
+    'hexBinary':'byte[]',
+    'NOTATION':'string',
+ } as const;
 
 
-function initDefaultTypes(name: string, mapedType: 'string' | 'boolean' | 'number') {
+
+function initDefaultTypes(name: string, mapedType: 'string' | 'boolean' | 'number' | 'date' | 'byte[]' ) {
     simpleTypeDepot.setType({ local: name, namespace: 'http://www.w3.org/2001/XMLSchema' }, { base: mapedType, original: name, subType: 'native', type: "simpleType" } as nativeType)
     complexOrSimpleTypeDepot.setType({ local: name, namespace: 'http://www.w3.org/2001/XMLSchema' }, { base: mapedType, original: name, subType: 'native', type: "simpleType" } as nativeType)
 }
@@ -58,6 +103,7 @@ export type choise = {
 export type simpleContent = {
     type: 'simpleContent',
     base: complexType | simpleType,
+    attributes: attribute[]
 }
 export type container = sequence | all | choise;
 
@@ -336,7 +382,8 @@ function getComplexType(xml: Xml, targetNamespace: string): DeepPromise<complexT
                         const base = complexOrSimpleTypeDepot.getType(getTagname(withoutAnotations[0].attributes['base'], xml.scope));
                         const r: simpleContent = {
                             base: await waitAll(base) as any,
-                            type: "simpleContent"
+                            type: "simpleContent",
+                            attributes: getAttributes(withoutAnotations[0].children, targetNamespace) as any,
                         }
                         resolve(r);
                     }, 'getSimpleContent').catch(x => {

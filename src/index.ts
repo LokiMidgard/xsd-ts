@@ -8,5 +8,7 @@ export const generateTypes = generateTypes2;
 export const Parser = Parser2;
 
 export function toTsTypes(types: TypeMapping) {
-    return Object.entries(types).map(x => ` export type ${x[0]} = ${x[1]}\n`);
+    return Object.entries(types)
+        .sort((a, b) => a[0].charCodeAt(0) - b[0].charCodeAt(0))
+        .map(x => ` ${(!x[0].startsWith('ιδ') ? 'export' : '')} type ${x[0]} = ${x[1]}\n`);
 }

@@ -12,7 +12,7 @@ export async function generateTypes(elements: element[]): Promise<TypeMapping> {
     let id = 1;
     await visitor(elements, (property, obj) => {
         if (property == 'name' && obj.local && obj.namespace) {
-            obj.id = `id${id++}`;
+            obj.id = `ιδ${id++}`;
         }
     })
 
@@ -48,7 +48,9 @@ function writeType(obj: WithId<element | attribute | complexType | simpleType>, 
 
     if (obj !== undefined) {
         const type = generateType(obj, false, types);
-        types[obj.name.local] = id;
+        if (!types[obj.name.local]) {
+            types[obj.name.local] = id;
+        }
         types[id] = type;
     }
 }
@@ -76,7 +78,12 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
             : (obj.occurence.minOccurance) === 0
                 ? ' | undefined'
                 : '');
-        return `{${obj.name.local}: ${internalType}}`
+        if (!types[obj.name.local]) {
+            types[obj.name.local] = internalType
+            return `{${obj.name.local}: ${obj.name.local}}`
+        } else {
+            return `{${obj.name.local}: ${internalType}}`
+        }
     } else if (obj.type === 'simpleType') {
         if (obj.subType === 'native') {
             return obj.base;
@@ -128,7 +135,7 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
             return generateType(obj.base, true, types);
         } else {
             const attributeType = obj.attributes.map(x => generateType(x, true, types)).reduce((p, c) => p === '' ? c : `${p} & ${c}`, '');
-            return `{meta:${attributeType}\nvalue :${generateType(obj.base, true, types)}}`;
+            return `{meta:${attributeType}, value :${generateType(obj.base, true, types)}}`;
         }
 
     }

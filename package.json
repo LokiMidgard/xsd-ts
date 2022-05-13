@@ -1,6 +1,6 @@
 {
   "name": "xsd-ts",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "description": "A tool to create xml parser/validator from xsd",
   "type": "commonjs",
   "scripts": {

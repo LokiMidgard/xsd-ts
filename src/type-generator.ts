@@ -74,15 +74,17 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
         const internalType = '(' + generateType(obj.simpleType, true, types) + ')' + (obj.optional ? ' | undefined' : '');
         return `{${obj.name.local}: ${internalType}}`
     } else if (obj.type === 'element') {
-        const internalType = '(' + generateType(obj.content, true, types) + ')' + (obj.occurence.maxOccurance === 'unbounded' || obj.occurence.maxOccurance > 1 ? '[]'
+        const array = obj.occurence.maxOccurance === 'unbounded' || obj.occurence.maxOccurance > 1 ? '[]'
             : (obj.occurence.minOccurance) === 0
                 ? ' | undefined'
-                : '');
+                : '';
+        const internal = '(' + generateType(obj.content, true, types) + ')';
+        const internalConstructedType = internal + array;
         if (!types[obj.name.local]) {
-            types[`_${obj.name.local}`] = internalType
-            return `{${obj.name.local}: _${obj.name.local}}`
+            types[`_${obj.name.local}`] = internal
+            return `{${obj.name.local}: _${obj.name.local + array}}`
         } else {
-            return `{${obj.name.local}: ${internalType}}`
+            return `{${obj.name.local}: ${internalConstructedType}}`
         }
     } else if (obj.type === 'simpleType') {
         if (obj.subType === 'native') {

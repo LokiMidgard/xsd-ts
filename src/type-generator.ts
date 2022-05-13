@@ -79,8 +79,8 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
                 ? ' | undefined'
                 : '');
         if (!types[obj.name.local]) {
-            types[obj.name.local] = internalType
-            return `{${obj.name.local}: ${obj.name.local}}`
+            types[`_${obj.name.local}`] = internalType
+            return `{${obj.name.local}: _${obj.name.local}}`
         } else {
             return `{${obj.name.local}: ${internalType}}`
         }

@@ -12,7 +12,7 @@ export async function generateTypes(elements: element[]): Promise<TypeMapping> {
     let id = 1;
     await visitor(elements, (property, obj) => {
         if (property == 'name' && obj.local && obj.namespace) {
-            obj.id = `ιδ${id++}`;
+            obj.id = `ιδ${id++}ε`;
         }
     })
 

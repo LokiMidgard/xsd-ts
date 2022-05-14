@@ -203,6 +203,9 @@ export class Parser<T> {
                     }
 
                     if (tmpResult == null) {
+                        const ttt={} as any;
+                        ttt[x.name.local] = []
+                        result = { ...result, ...ttt };
                         // console.log(`sequence array did NOT mathch ${JSON.stringify(x.name)}`)
                         continue;
                     }

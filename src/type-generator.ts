@@ -48,9 +48,12 @@ function writeType(obj: WithId<element | attribute | complexType | simpleType>, 
 
     if (obj !== undefined) {
         const type = generateType(obj, false, types);
-        if (!types[obj.name.local]) {
-            types[obj.name.local] = id;
+        let newLocal = obj.name.local;
+        let i = 0
+        while (types[newLocal]) {
+            newLocal = obj.name.local + (++i);
         }
+        types[newLocal] = id;
         types[id] = type;
     }
 }
@@ -80,12 +83,16 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
                 : '';
         const internal = '(' + generateType(obj.content, true, types) + ')';
         const internalConstructedType = internal + array;
-        if (!types[obj.name.local]) {
-            types[`_${obj.name.local}`] = internal
-            return `{${obj.name.local}: _${obj.name.local + array}}`
-        } else {
-            return `{${obj.name.local}: ${internalConstructedType}}`
+
+        let newLocal = `_${obj.name.local}`;
+        let i = 0
+        while (types[newLocal]) {
+            newLocal = `_${obj.name.local}` + (++i);
         }
+        types[newLocal] = internal;
+        return `{${obj.name.local}: ${newLocal + array}}`
+
+
     } else if (obj.type === 'simpleType') {
         if (obj.subType === 'native') {
             return obj.base;

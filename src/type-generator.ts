@@ -1,4 +1,5 @@
 import { stringify } from "querystring";
+import { TagName } from "xml-ns-parser";
 import { visitor } from "./utils";
 import { element, attribute, complexType, simpleType, container, simpleContent } from "./xsd";
 
@@ -6,7 +7,7 @@ export type TypeMapping = {
     [name: string]: string
 }
 
-export async function generateTypes(elements: element[]): Promise<TypeMapping> {
+export async function generateTypes(elements: element[], typeRenderer: (name: TagName) => string): Promise<TypeMapping> {
 
     // first make everyone an uniqe id
     let id = 1;
@@ -20,7 +21,7 @@ export async function generateTypes(elements: element[]): Promise<TypeMapping> {
 
     const types: Record<string, string> = {};
     for (const element of elements) {
-        generateType(element, true, types);
+        generateType(element, true, types, typeRenderer ?? ((name: TagName) => `${name.local}_ℕ${name.namespace.replaceAll(':', '_α_').replaceAll('/', '_ι_').replaceAll('.', '_σ_').replaceAll('-', '_τ_')}`));
     }
     types['SubArray<T>'] = `
     {
@@ -38,7 +39,7 @@ type WithId<T> = T extends { name?: { local: string, namespace: string } }
     : T;
 
 
-function writeType(obj: WithId<element | attribute | complexType | simpleType>, types: Record<string, string>) {
+function writeType(obj: WithId<element | attribute | complexType | simpleType>, types: Record<string, string>, typeRenderer: (name: TagName) => string) {
 
     const id = getId(obj);
     if (types[id]) {
@@ -47,18 +48,20 @@ function writeType(obj: WithId<element | attribute | complexType | simpleType>, 
     types[id] = 'X';
 
     if (obj !== undefined) {
-        const type = generateType(obj, false, types);
-        let newLocal = obj.name.local;
+        const type = generateType(obj, false, types, typeRenderer);
+        let newLocal = `_${obj.name.local}`;
         let i = 0
         while (types[newLocal]) {
-            newLocal = obj.name.local + (++i);
+            newLocal = `_${obj.name.local}` + (++i);
         }
         types[newLocal] = id;
+        if (obj.name.root)
+            types[`${obj.name.local}_ℕ${obj.name.namespace.replaceAll(':', '_α_').replaceAll('/', '_ι_').replaceAll('.', '_σ_').replaceAll('-', '_τ_')}`] = id;
         types[id] = type;
     }
 }
 
-function generateType(obj: element | attribute | complexType | simpleType | container | simpleContent | undefined, useId: boolean, types: Record<string, string>): string {
+function generateType(obj: element | attribute | complexType | simpleType | container | simpleContent | undefined, useId: boolean, types: Record<string, string>, typeRenderer: (name: TagName) => string): string {
 
     if (typeof obj === 'undefined') {
         return 'Record<string, never>'
@@ -67,21 +70,21 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
     if (withId.name && useId) {
 
         if (!types[withId.name.id]) {
-            writeType(withId, types)
+            writeType(withId, types, typeRenderer)
         }
         return getId(withId); // already created
     }
 
 
     if (obj.type === 'attribute') {
-        const internalType = '(' + generateType(obj.simpleType, true, types) + ')' + (obj.optional ? ' | undefined' : '');
+        const internalType = '(' + generateType(obj.simpleType, true, types, typeRenderer) + ')' + (obj.optional ? ' | undefined' : '');
         return `{${obj.name.local}: ${internalType}}`
     } else if (obj.type === 'element') {
         const array = obj.occurence.maxOccurance === 'unbounded' || obj.occurence.maxOccurance > 1 ? '[]'
             : (obj.occurence.minOccurance) === 0
                 ? ' | undefined'
                 : '';
-        const internal = '(' + generateType(obj.content, true, types) + ')';
+        const internal = '(' + generateType(obj.content, true, types, typeRenderer) + ')';
         const internalConstructedType = internal + array;
 
         let newLocal = `_${obj.name.local}`;
@@ -90,14 +93,14 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
             newLocal = `_${obj.name.local}` + (++i);
         }
         types[newLocal] = internal;
-        return `{${obj.name.local}: ${newLocal + array}}`
+        return `{"#": "${obj.name.local}" ,${obj.name.local}: ${newLocal + array}}`
 
 
     } else if (obj.type === 'simpleType') {
         if (obj.subType === 'native') {
             return obj.base;
         } else if (obj.subType === 'union') {
-            return obj.unions.map(x => generateType(x, true, types)).reduce((p, c) => p === '' ? c : `${p} | ${c} `, '');
+            return obj.unions.map(x => generateType(x, true, types, typeRenderer)).reduce((p, c) => p === '' ? c : `${p} | ${c} `, '');
         } else if (obj.subType === 'list') {
             throw Error('List is not yet supported');
         } else if (obj.subType === 'restriction') {
@@ -109,13 +112,13 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
             } else if (obj.subSubType === 'pattern') {
                 return 'string';
             } else if (obj.subSubType === 'simple') {
-                return generateType(obj.baseType, true, types);
+                return generateType(obj.baseType, true, types, typeRenderer);
             }
         }
     } else if (obj.type === 'complexType') {
         // withId;
-        const contentType = generateType(obj.content, true, types);
-        const attributeType = obj.attributes.map(x => generateType(x, true, types)).reduce((p, c) => p === '' ? c : `${p} & ${c}`, '');
+        const contentType = generateType(obj.content, true, types, typeRenderer);
+        const attributeType = obj.attributes.map(x => generateType(x, true, types, typeRenderer)).reduce((p, c) => p === '' ? c : `${p} & ${c}`, '');
         if (attributeType === '') {
             return contentType;
         }
@@ -128,23 +131,23 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
         if ((obj.occurence.maxOccurance === 'unbounded' || obj.occurence.maxOccurance > 1) && obj.content.length > 1) {
             throw Error('Currently can`t handle more then one content in an all with occurance higher then 1')
         }
-        return obj.content.map(x => generateType(x, true, types)).reduce((p, c) => p === '' ? c : `${p} & ${c}`, '')
+        return obj.content.map(x => generateType(x, true, types, typeRenderer)).reduce((p, c) => p === '' ? c : `${p} & ${c}`, '')
     } else if (obj.type === 'choise') {
         if (obj.occurence.maxOccurance === 'unbounded' || obj.occurence.maxOccurance > 1) {
-            return '(' + obj.content.map(x => generateType(x, true, types)).reduce((p, c) => p === '' ? `SubArray<${c}>` : `${p} & SubArray<${c}>`, '') + ')'
+            return '(' + obj.content.map(x => generateType(x, true, types, typeRenderer)).reduce((p, c) => p === '' ? `SubArray<${c}>` : `${p} & SubArray<${c}>`, '') + ')'
         }
-        return obj.content.map(x => generateType(x, true, types)).reduce((p, c) => p === '' ? c : `${p} | ${c}`, '')
+        return obj.content.map(x => generateType(x, true, types, typeRenderer)).reduce((p, c) => p === '' ? c : `${p} | ${c}`, '')
     } else if (obj.type === 'sequence') {
         if ((obj.occurence.maxOccurance === 'unbounded' || obj.occurence.maxOccurance > 1) && obj.content.length > 1) {
             throw Error(`Currently can't handle more then one content in an sequence with occurance higher then 1 ${JSON.stringify([obj.content.length, obj.occurence])}`)
         }
-        return obj.content.map(x => generateType(x, true, types)).reduce((p, c) => p === '' ? c : `${p} & ${c}`, '')
+        return obj.content.map(x => generateType(x, true, types, typeRenderer)).reduce((p, c) => p === '' ? c : `${p} & ${c}`, '')
     } else if (obj.type === 'simpleContent') {
         if (obj.attributes.length == 0) {
-            return generateType(obj.base, true, types);
+            return generateType(obj.base, true, types, typeRenderer);
         } else {
-            const attributeType = obj.attributes.map(x => generateType(x, true, types)).reduce((p, c) => p === '' ? c : `${p} & ${c}`, '');
-            return `{meta:${attributeType}, value :${generateType(obj.base, true, types)}}`;
+            const attributeType = obj.attributes.map(x => generateType(x, true, types, typeRenderer)).reduce((p, c) => p === '' ? c : `${p} & ${c}`, '');
+            return `{meta:${attributeType}, value :${generateType(obj.base, true, types, typeRenderer)}}`;
         }
 
     }

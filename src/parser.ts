@@ -38,7 +38,8 @@ export class Parser<T> {
             return null;
         }
         const x: any = {};
-            x[element.name.local] = element.content ? this.parseUnknown(xml, element.content) : {};
+        x[element.name.local] = element.content ? this.parseUnknown(xml, element.content) : {};
+        //x['#'] = element.name.local;
 
         return x;
     }
@@ -187,7 +188,7 @@ export class Parser<T> {
                     let tmpResult: any = null;
                     while (true) {
                         const e = this.parseElement(xml.children[currentIndex], x);
-         
+
                         if (e === null || i > x.occurence.maxOccurance) {
                             break;
                         } else if (tmpResult == null) {
@@ -203,7 +204,7 @@ export class Parser<T> {
                     }
 
                     if (tmpResult == null) {
-                        const ttt={} as any;
+                        const ttt = {} as any;
                         ttt[x.name.local] = []
                         result = { ...result, ...ttt };
                         // console.log(`sequence array did NOT mathch ${JSON.stringify(x.name)}`)

@@ -2,9 +2,11 @@
 
 import Depot from "./Depot";
 
-import { getTagname, TagName, Xml } from "xml-ns-parser";
+import { getTagname, TagName as _TagName, Xml } from "xml-ns-parser";
 import { DeepPromise, filterUndefined, makePromise, waitAll } from "./utils";
 import { downloadXsd } from "./download-schema";
+
+export type TagName = _TagName & { root?: boolean }
 
 const attributeDepot = new Depot<TagName, DeepPromise<attribute>>(name => name.local + '#' + name.namespace);
 const attributeGroupDepot = new Depot<TagName, DeepPromise<attribute[]>>(name => name.local + '#' + name.namespace);
@@ -60,18 +62,18 @@ const builtInXsdtypes = {
     'time': 'date',
 
     // misc types
-    'anyURI':'string',
-    'base64Binary':'byte[]',
-    'boolean':'boolean',
-    'double':'number',
-    'float':'number',
-    'hexBinary':'byte[]',
-    'NOTATION':'string',
- } as const;
+    'anyURI': 'string',
+    'base64Binary': 'byte[]',
+    'boolean': 'boolean',
+    'double': 'number',
+    'float': 'number',
+    'hexBinary': 'byte[]',
+    'NOTATION': 'string',
+} as const;
 
 
 
-function initDefaultTypes(name: string, mapedType: 'string' | 'boolean' | 'number' | 'date' | 'byte[]' ) {
+function initDefaultTypes(name: string, mapedType: 'string' | 'boolean' | 'number' | 'date' | 'byte[]') {
     simpleTypeDepot.setType({ local: name, namespace: 'http://www.w3.org/2001/XMLSchema' }, { base: mapedType, original: name, subType: 'native', type: "simpleType" } as nativeType)
     complexOrSimpleTypeDepot.setType({ local: name, namespace: 'http://www.w3.org/2001/XMLSchema' }, { base: mapedType, original: name, subType: 'native', type: "simpleType" } as nativeType)
 }
@@ -182,7 +184,7 @@ export type simpleTypeUnion = {
 export type element = {
     type: 'element',
     content: complexType | simpleType | undefined,
-    name: TagName ,
+    name: TagName,
     occurence: Occurence,
 }
 
@@ -193,21 +195,31 @@ export default async function parseSchemas(schemas: (Xml[]) | string): Promise<e
         return parseSchemas(await downloadXsd(schemas))
     }
 
+    const r: (DeepPromise<element> | DeepPromise<attribute> | DeepPromise<attribute[]> | DeepPromise<complexType> | DeepPromise<simpleType>)[] = [];
     for (const root of schemas) {
         const targetNamespace = root.attributes['targetNamespace'];
         for (const xml of root.children) {
-            getAttribute(xml, targetNamespace, true)
+            const x = getAttribute(xml, targetNamespace, true)
                 ?? getAttributeGrupe(xml, targetNamespace, true)
                 ?? getComplexType(xml, targetNamespace)
                 ?? getElement(xml, targetNamespace, true)
-                ?? getSimpleType(xml, targetNamespace);
+                ?? getSimpleType(xml, targetNamespace)
+            if (x != undefined)
+                r.push(x);
         }
     }
 
 
-    const result = waitAll(elementDepot.getAll());
-    const elements = await result;
-    return elements as any;
+    await waitAll(elementDepot.getAll());
+    const result = await waitAll(r)// as (element | attribute | attribute[] | complexType | simpleType)[]
+    const iii = result.flatMap(x => Array.isArray(x) ? x : [x]);
+    iii.forEach(x => {
+        if (x.name) {
+            x.name.root = true
+        }
+
+    });
+    return iii.filter(x => x.type == 'element') as element[];
 
 
 }
@@ -410,6 +422,7 @@ function getComplexType(xml: Xml, targetNamespace: string): DeepPromise<complexT
                 attributes: getAttributes(xml.children, targetNamespace),
             }
             if (xml.attributes['name']) {
+                r.name = { local: xml.attributes['name'], namespace: targetNamespace }
                 complexTypeDepot.setType({ local: xml.attributes['name'], namespace: targetNamespace }, r);
                 complexOrSimpleTypeDepot.setType({ local: xml.attributes['name'], namespace: targetNamespace }, r);
             }
@@ -423,6 +436,7 @@ function getComplexType(xml: Xml, targetNamespace: string): DeepPromise<complexT
                 attributes: getAttributes(attributes, targetNamespace),
             }
             if (xml.attributes['name']) {
+                r.name = { local: xml.attributes['name'], namespace: targetNamespace }
                 complexTypeDepot.setType({ local: xml.attributes['name'], namespace: targetNamespace }, r);
                 complexOrSimpleTypeDepot.setType({ local: xml.attributes['name'], namespace: targetNamespace }, r);
             }
@@ -490,6 +504,9 @@ function getSimpleType(xml: Xml, targetNamespace: string): DeepPromise<simpleTyp
                         type: "simpleType",
                         baseType: await waitAll(simpleTypeDepot.getType(getTagname(single.attributes['base'], xml.scope))) as any
                     }
+                    if (xml.attributes['name']) {
+                        tmp.name = { local: xml.attributes['name'], namespace: targetNamespace }
+                    }
                     resolve(tmp);
                 }, 'getSimpleType-restriction-simple').catch(x => {
                     console.error(`Faild Promise ${x}`);
@@ -518,6 +535,9 @@ function getSimpleType(xml: Xml, targetNamespace: string): DeepPromise<simpleTyp
                         baseType: await waitAll(simpleTypeDepot.getType(getTagname(single.attributes['base'], xml.scope))) as any,
                         values: values
                     }
+                    if (xml.attributes['name']) {
+                        tmp.name = { local: xml.attributes['name'], namespace: targetNamespace }
+                    }
                     resolve(tmp);
                 }, 'getSimpleType-restriction-enumeration').catch(x => {
                     console.error(`Faild Promise ${x}`);
@@ -543,6 +563,7 @@ function getSimpleType(xml: Xml, targetNamespace: string): DeepPromise<simpleTyp
                     pattern: new RegExp(withoutAnotations[0].attributes['value'])
                 }
                 if (xml.attributes['name']) {
+                    r.name = { local: xml.attributes['name'], namespace: targetNamespace }
                     simpleTypeDepot.setType({ local: xml.attributes['name'], namespace: targetNamespace }, r);
                     complexOrSimpleTypeDepot.setType({ local: xml.attributes['name'], namespace: targetNamespace }, r);
                 }
@@ -580,6 +601,7 @@ function getSimpleType(xml: Xml, targetNamespace: string): DeepPromise<simpleTyp
                     maxInclusive: maxInclusive ? parseInt(maxInclusive) : undefined
                 }
                 if (xml.attributes['name']) {
+                    r.name = { local: xml.attributes['name'], namespace: targetNamespace }
                     simpleTypeDepot.setType({ local: xml.attributes['name'], namespace: targetNamespace }, r);
                     complexOrSimpleTypeDepot.setType({ local: xml.attributes['name'], namespace: targetNamespace }, r);
                 }
@@ -601,6 +623,9 @@ function getSimpleType(xml: Xml, targetNamespace: string): DeepPromise<simpleTyp
                     type: 'simpleType',
                     subType: 'union',
                     unions: unionElements
+                }
+                if (xml.attributes['name']) {
+                    r.name = { local: xml.attributes['name'], namespace: targetNamespace }
                 }
                 resolve(r);
             }, 'simpletype') as DeepPromise<simpleType>;

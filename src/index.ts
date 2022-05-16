@@ -9,6 +9,6 @@ export const Parser = Parser2;
 
 export function toTsTypes(types: TypeMapping) {
     return Object.entries(types)
-        .sort((a, b) => a[0].charCodeAt(0) - b[0].charCodeAt(0))
+        .sort((a, b) => a[0].localeCompare(b[0]))
         .map(x => ` ${(!x[0].startsWith('ι') ? 'export' : '')} type ${x[0]} = ${x[1]}\n`);
 }

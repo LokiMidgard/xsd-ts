@@ -7,7 +7,7 @@ export type TypeMapping = {
     [name: string]: string
 }
 
-export async function generateTypes(elements: element[], typeRenderer: (name: TagName) => string): Promise<TypeMapping> {
+export async function generateTypes(elements: element[], typeRenderer?: (name: TagName) => string): Promise<TypeMapping> {
 
     // first make everyone an uniqe id
     let id = 1;

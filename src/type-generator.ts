@@ -61,7 +61,8 @@ function writeType(obj: WithId<element | attribute | complexType | simpleType>, 
     }
 }
 
-function generateType(obj: element | attribute | complexType | simpleType | container | simpleContent | undefined, useId: boolean, types: Record<string, string>, typeRenderer: (name: TagName) => string): string {
+function generateType(obj: element | attribute | complexType | simpleType | container | simpleContent | undefined, useId: boolean, types: Record<string, string>, typeRenderer: (name: TagName) => string, setName?: boolean): string {
+
 
     if (typeof obj === 'undefined') {
         return 'Record<string, never>'
@@ -72,7 +73,11 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
         if (!types[withId.name.id]) {
             writeType(withId, types, typeRenderer)
         }
-        return getId(withId); // already created
+     
+        return '('+getId(withId) +
+            (setName && obj.type === 'element'
+                ? `& {"#": "${obj.name.local}"}`
+                : '')+')'; // already created
     }
 
 
@@ -80,6 +85,8 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
         const internalType = '(' + generateType(obj.simpleType, true, types, typeRenderer) + ')' + (obj.optional ? ' | undefined' : '');
         return `{${obj.name.local}: ${internalType}}`
     } else if (obj.type === 'element') {
+        
+   
         const array = obj.occurence.maxOccurance === 'unbounded' || obj.occurence.maxOccurance > 1 ? '[]'
             : (obj.occurence.minOccurance) === 0
                 ? ' | undefined'
@@ -93,7 +100,10 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
             newLocal = `_${obj.name.local}` + (++i);
         }
         types[newLocal] = internal;
-        return `{ ${obj.name.local}: ${newLocal + array} & {"#": "${obj.name.local}"}${array}}`
+        return `({ ${obj.name.local}: ${newLocal + array}}` +
+            (setName
+                ? `& {"#": "${obj.name.local}"}`
+                : '')+')';
 
 
     } else if (obj.type === 'simpleType') {
@@ -136,7 +146,7 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
         if (obj.occurence.maxOccurance === 'unbounded' || obj.occurence.maxOccurance > 1) {
             return '(' + obj.content.map(x => generateType(x, true, types, typeRenderer)).reduce((p, c) => p === '' ? `SubArray<${c}>` : `${p} & SubArray<${c}>`, '') + ')'
         }
-        return obj.content.map(x => generateType(x, true, types, typeRenderer)).reduce((p, c) => p === '' ? c : `${p} | ${c}`, '')
+        return obj.content.map(x => generateType(x, true, types, typeRenderer, true)).reduce((p, c) => p === '' ? c : `${p} | ${c}`, '')
     } else if (obj.type === 'sequence') {
         if ((obj.occurence.maxOccurance === 'unbounded' || obj.occurence.maxOccurance > 1) && obj.content.length > 1) {
             throw Error(`Currently can't handle more then one content in an sequence with occurance higher then 1 ${JSON.stringify([obj.content.length, obj.occurence])}`)

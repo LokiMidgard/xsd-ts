@@ -93,7 +93,7 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
             newLocal = `_${obj.name.local}` + (++i);
         }
         types[newLocal] = internal;
-        return `{"#": "${obj.name.local}" ,${obj.name.local}: ${newLocal + array}}`
+        return `{ ${obj.name.local}: ${newLocal + array} & {"#": "${obj.name.local}"}${array}}`
 
 
     } else if (obj.type === 'simpleType') {

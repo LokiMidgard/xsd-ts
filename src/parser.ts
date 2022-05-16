@@ -38,8 +38,19 @@ export class Parser<T> {
             return null;
         }
         const x: any = {};
-        x[element.name.local] = element.content ? this.parseUnknown(xml, element.content) : {};
-        //x['#'] = element.name.local;
+        const y = element.content ? this.parseUnknown(xml, element.content) : {};
+
+        x[element.name.local] = y;
+        if (Array.isArray(y)) {
+            y.forEach(z => {
+                if (typeof z === 'object') {
+                    z['#'] = element.name.local;
+                }
+            });
+        } else if (typeof y === 'object') {
+            y['#'] = element.name.local;
+        }
+
 
         return x;
     }

@@ -56,7 +56,7 @@ function writeType(obj: WithId<element | attribute | complexType | simpleType>, 
         }
         types[newLocal] = id;
         if (obj.name.root)
-            types[`${obj.name.local}_ℕ${obj.name.namespace.replaceAll(':', '_α_').replaceAll('/', '_ι_').replaceAll('.', '_σ_').replaceAll('-', '_τ_')}`] = id;
+            types[typeRenderer(obj.name)] = id;
         types[id] = type;
     }
 }

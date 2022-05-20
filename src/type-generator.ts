@@ -73,20 +73,20 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
         if (!types[withId.name.id]) {
             writeType(withId, types, typeRenderer)
         }
-     
-        return '('+getId(withId) +
+
+        return '(' + getId(withId) +
             (setName && obj.type === 'element'
                 ? `& {"#": "${obj.name.local}"}`
-                : '')+')'; // already created
+                : '') + ')'; // already created
     }
 
 
     if (obj.type === 'attribute') {
-        const internalType = '(' + generateType(obj.simpleType, true, types, typeRenderer) + ')' + (obj.optional ? ' | undefined' : '');
+        const internalType = '(' + generateType(obj.simpleType, true, types, typeRenderer) + ')' + (obj.optional && obj.default == undefined ? ' | undefined' : '');
         return `{${obj.name.local}: ${internalType}}`
     } else if (obj.type === 'element') {
-        
-   
+
+
         const array = obj.occurence.maxOccurance === 'unbounded' || obj.occurence.maxOccurance > 1 ? '[]'
             : (obj.occurence.minOccurance) === 0
                 ? ' | undefined'
@@ -103,7 +103,7 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
         return `({ ${obj.name.local}: ${newLocal + array}}` +
             (setName
                 ? `& {"#": "${obj.name.local}"}`
-                : '')+')';
+                : '') + ')';
 
 
     } else if (obj.type === 'simpleType') {

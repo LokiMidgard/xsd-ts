@@ -65,7 +65,7 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
 
 
     if (typeof obj === 'undefined') {
-        return 'Record<string, never>'
+        return '{}'
     }
     const withId = obj as WithId<element | attribute | complexType | simpleType>;
     if (withId.name && useId) {

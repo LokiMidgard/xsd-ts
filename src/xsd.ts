@@ -107,6 +107,11 @@ export type simpleContent = {
     base: complexType | simpleType,
     attributes: attribute[]
 }
+export type complexContent = {
+    type: 'complexContent',
+    base: complexType | simpleType,
+    attributes: attribute[]
+}
 export type container = sequence | all | choise;
 
 export type attribute = {
@@ -120,7 +125,7 @@ export type attribute = {
 export type complexType = {
     type: 'complexType',
     name?: TagName,
-    content: container | simpleContent | undefined,
+    content: container | simpleContent| complexContent | undefined,
     attributes: attribute[],
 }
 
@@ -413,12 +418,48 @@ function getComplexType(xml: Xml, targetNamespace: string): DeepPromise<complexT
                 return undefined;
             }
         }
+        function getComplexContent(xml: Xml): DeepPromise<complexContent> | undefined {
+            if (typeof xml === 'undefined') {
+                return undefined;
+            }
+            if (xml.name.local === 'simpleContent' && xml.name.namespace === 'http://www.w3.org/2001/XMLSchema') {
+                const withoutAnotations = xml.children.filter(x => x.name.local !== 'annotation' || x.name.namespace !== 'http://www.w3.org/2001/XMLSchema');
+
+                if (withoutAnotations.length !== 1) {
+                    throw Error('SimpleContent is only supported with ONE extension or ONE restriction');
+                }
+
+                if (withoutAnotations[0].name.local === 'extension' && xml.name.namespace === 'http://www.w3.org/2001/XMLSchema') {
+                    const r: DeepPromise<complexContent> = makePromise<complexContent>(async resolve => {
+                        const base = complexOrSimpleTypeDepot.getType(getTagname(withoutAnotations[0].attributes['base'], xml.scope));
+                        const r: complexContent = {
+                            base: await waitAll(base) as any,
+                            type: "complexContent",
+                            attributes: getAttributes(withoutAnotations[0].children, targetNamespace) as any,
+                        }
+                        resolve(r);
+                    }, 'getSimpleContent').catch(x => {
+                        console.error(`Faild Promise ${x}`);
+                        throw Error(`Faild Promise ${x}`);
+                    })
+
+                    return r;
+
+                } else if (withoutAnotations[0].name.local === 'restriction' && xml.name.namespace === 'http://www.w3.org/2001/XMLSchema') {
+                    throw Error('simpleContent restriction not yet supported');
+
+                }
+            } else {
+                return undefined;
+            }
+        }
         const simpleContent = getSimpleContent(first);
-        if (simpleContent) {
+        const complexContent = getComplexContent(first);
+        if (simpleContent??complexContent) {
 
             const r: DeepPromise<complexType> = {
                 type: "complexType",
-                content: simpleContent,
+                content: simpleContent ??complexContent,
                 attributes: getAttributes(xml.children, targetNamespace),
             }
             if (xml.attributes['name']) {

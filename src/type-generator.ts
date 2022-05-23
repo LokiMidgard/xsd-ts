@@ -1,7 +1,7 @@
 import { stringify } from "querystring";
 import { TagName } from "xml-ns-parser";
 import { visitor } from "./utils";
-import { element, attribute, complexType, simpleType, container, simpleContent } from "./xsd";
+import { element, attribute, complexType, simpleType, container, simpleContent, complexContent } from "./xsd";
 
 export type TypeMapping = {
     [name: string]: string
@@ -61,7 +61,7 @@ function writeType(obj: WithId<element | attribute | complexType | simpleType>, 
     }
 }
 
-function generateType(obj: element | attribute | complexType | simpleType | container | simpleContent | undefined, useId: boolean, types: Record<string, string>, typeRenderer: (name: TagName) => string, setName?: boolean): string {
+function generateType(obj: element | attribute | complexType | simpleType | container | simpleContent| complexContent | undefined, useId: boolean, types: Record<string, string>, typeRenderer: (name: TagName) => string, setName?: boolean): string {
 
 
     if (typeof obj === 'undefined') {
@@ -153,6 +153,13 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
         }
         return obj.content.map(x => generateType(x, true, types, typeRenderer)).reduce((p, c) => p === '' ? c : `${p} & ${c}`, '')
     } else if (obj.type === 'simpleContent') {
+        if (obj.attributes.length == 0) {
+            return generateType(obj.base, true, types, typeRenderer);
+        } else {
+            const attributeType = obj.attributes.map(x => generateType(x, true, types, typeRenderer)).reduce((p, c) => p === '' ? c : `${p} & ${c}`, '');
+            return `{meta:${attributeType}, value :${generateType(obj.base, true, types, typeRenderer)}}`;
+        }
+    } else if (obj.type === 'complexContent') {
         if (obj.attributes.length == 0) {
             return generateType(obj.base, true, types, typeRenderer);
         } else {

@@ -1,5 +1,5 @@
 import { Xml, parseXml } from "xml-ns-parser";
-import { all, choise, complexType, element, sequence, simpleContent, simpleType } from "./xsd";
+import { all, choise, complexContent, complexType, element, sequence, simpleContent, simpleType } from "./xsd";
 
 
 export class Parser<T> {
@@ -354,6 +354,8 @@ export class Parser<T> {
             // nothing todo
         } else if (element.content.type === 'simpleContent') {
             return this.parseSimpleContent(xml, element.content);
+        } else if (element.content.type === 'complexContent') {
+            return this.parseSimpleContent(xml, element.content);
         } else if (element.content.type === 'all') {
             const allObject = this.parseAllType(xml, element.content, { index: 0 })
             if (allObject === null) {
@@ -401,7 +403,7 @@ export class Parser<T> {
 
         return result;
     }
-    private parseSimpleContent(xml: Xml, element: simpleContent) {
+    private parseSimpleContent(xml: Xml, element: simpleContent | complexContent) {
         const t =
             (element.base.type === 'simpleType') ?
                 this.parseSimpleType(xml, element.base)

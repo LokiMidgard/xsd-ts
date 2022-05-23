@@ -422,11 +422,11 @@ function getComplexType(xml: Xml, targetNamespace: string): DeepPromise<complexT
             if (typeof xml === 'undefined') {
                 return undefined;
             }
-            if (xml.name.local === 'simpleContent' && xml.name.namespace === 'http://www.w3.org/2001/XMLSchema') {
+            if (xml.name.local === 'complexContent' && xml.name.namespace === 'http://www.w3.org/2001/XMLSchema') {
                 const withoutAnotations = xml.children.filter(x => x.name.local !== 'annotation' || x.name.namespace !== 'http://www.w3.org/2001/XMLSchema');
 
                 if (withoutAnotations.length !== 1) {
-                    throw Error('SimpleContent is only supported with ONE extension or ONE restriction');
+                    throw Error('ComplexContent is only supported with ONE extension or ONE restriction');
                 }
 
                 if (withoutAnotations[0].name.local === 'extension' && xml.name.namespace === 'http://www.w3.org/2001/XMLSchema') {
@@ -438,7 +438,7 @@ function getComplexType(xml: Xml, targetNamespace: string): DeepPromise<complexT
                             attributes: getAttributes(withoutAnotations[0].children, targetNamespace) as any,
                         }
                         resolve(r);
-                    }, 'getSimpleContent').catch(x => {
+                    }, 'getComplexContent').catch(x => {
                         console.error(`Faild Promise ${x}`);
                         throw Error(`Faild Promise ${x}`);
                     })
@@ -446,7 +446,7 @@ function getComplexType(xml: Xml, targetNamespace: string): DeepPromise<complexT
                     return r;
 
                 } else if (withoutAnotations[0].name.local === 'restriction' && xml.name.namespace === 'http://www.w3.org/2001/XMLSchema') {
-                    throw Error('simpleContent restriction not yet supported');
+                    throw Error('ComplexContent restriction not yet supported');
 
                 }
             } else {
@@ -456,7 +456,12 @@ function getComplexType(xml: Xml, targetNamespace: string): DeepPromise<complexT
         const simpleContent = getSimpleContent(first);
         const complexContent = getComplexContent(first);
         if (simpleContent??complexContent) {
+if(complexContent)
 
+{
+    console.log(complexContent)
+    console.log(simpleContent)
+}
             const r: DeepPromise<complexType> = {
                 type: "complexType",
                 content: simpleContent ??complexContent,

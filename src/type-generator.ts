@@ -160,6 +160,7 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
             return `{meta:${attributeType}, value :${generateType(obj.base, true, types, typeRenderer)}}`;
         }
     } else if (obj.type === 'complexContent') {
+        console.log(obj.type)
         if (obj.attributes.length == 0) {
             return generateType(obj.base, true, types, typeRenderer);
         } else {

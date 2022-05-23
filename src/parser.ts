@@ -355,7 +355,7 @@ export class Parser<T> {
         } else if (element.content.type === 'simpleContent') {
             return this.parseSimpleContent(xml, element.content);
         } else if (element.content.type === 'complexContent') {
-            return this.parseSimpleContent(xml, element.content);
+            return this.parseComplexContent(xml, element.content);
         } else if (element.content.type === 'all') {
             const allObject = this.parseAllType(xml, element.content, { index: 0 })
             if (allObject === null) {
@@ -403,7 +403,7 @@ export class Parser<T> {
 
         return result;
     }
-    private parseSimpleContent(xml: Xml, element: simpleContent | complexContent) {
+    private parseSimpleContent(xml: Xml, element: simpleContent ) {
         const t =
             (element.base.type === 'simpleType') ?
                 this.parseSimpleType(xml, element.base)
@@ -436,6 +436,42 @@ export class Parser<T> {
             }
 
             return { meta: attributeType, value: t };
+
+        }
+    }
+    private parseComplexContent(xml: Xml, element: complexContent) {
+        const t =
+            (element.base.type === 'simpleType') ?
+                this.parseSimpleType(xml, element.base)
+                :
+                this.parseComplexType(xml, element.base);
+
+        if (element.attributes.length == 0) {
+            return t;
+        } else {
+            const attributeType: Record<string, string> = {};
+            for (const att of element.attributes) {
+
+                const originalValue = xml.attributes[att.name.local];
+                // if (att.name.local == 'Distanz') {
+                //     console.log(`${JSON.stringify(att)}\n${originalValue}`)
+                // }
+                let parsed = typeof att.simpleType === 'undefined' ? originalValue : this.parseSimpleType(originalValue, att.simpleType);
+                if (parsed === null) {
+                    if (att.default !== undefined) {
+                        parsed = att.default;
+                    } else if (!att.optional) {
+                        console.log(`Missing required attribute ${JSON.stringify(att)}\n\t${JSON.stringify(xml.attributes)}`)
+                        return null;
+                    }
+
+                }
+                if (parsed !== null) {
+                    attributeType[att.name.local] = parsed;
+                }
+            }
+
+            return { ...attributeType, ...t };
 
         }
     }

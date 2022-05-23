@@ -160,12 +160,11 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
             return `{meta:${attributeType}, value :${generateType(obj.base, true, types, typeRenderer)}}`;
         }
     } else if (obj.type === 'complexContent') {
-        console.log(obj.type)
         if (obj.attributes.length == 0) {
             return generateType(obj.base, true, types, typeRenderer);
         } else {
             const attributeType = obj.attributes.map(x => generateType(x, true, types, typeRenderer)).reduce((p, c) => p === '' ? c : `${p} & ${c}`, '');
-            return `{meta:${attributeType}, value :${generateType(obj.base, true, types, typeRenderer)}}`;
+            return `(${attributeType}) & (${generateType(obj.base, true, types, typeRenderer)})`;
         }
 
     }

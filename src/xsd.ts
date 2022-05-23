@@ -456,12 +456,6 @@ function getComplexType(xml: Xml, targetNamespace: string): DeepPromise<complexT
         const simpleContent = getSimpleContent(first);
         const complexContent = getComplexContent(first);
         if (simpleContent??complexContent) {
-if(complexContent)
-
-{
-    console.log(complexContent)
-    console.log(simpleContent)
-}
             const r: DeepPromise<complexType> = {
                 type: "complexType",
                 content: simpleContent ??complexContent,

@@ -89,7 +89,7 @@ export class Parser<T> {
                         }
                         currentIndex++;
                         const keys = Object.keys(e);
-                        if(keys.length==1){
+                        if (keys.length == 1) {
                             const key = keys[0];
                             e['#'] = key;
                         }
@@ -403,7 +403,7 @@ export class Parser<T> {
 
         return result;
     }
-    private parseSimpleContent(xml: Xml, element: simpleContent ) {
+    private parseSimpleContent(xml: Xml, element: simpleContent) {
         const t =
             (element.base.type === 'simpleType') ?
                 this.parseSimpleType(xml, element.base)
@@ -446,34 +446,70 @@ export class Parser<T> {
                 :
                 this.parseComplexType(xml, element.base);
 
-        if (element.attributes.length == 0) {
-            return t;
-        } else {
-            const attributeType: Record<string, string> = {};
-            for (const att of element.attributes) {
 
-                const originalValue = xml.attributes[att.name.local];
-                // if (att.name.local == 'Distanz') {
-                //     console.log(`${JSON.stringify(att)}\n${originalValue}`)
-                // }
-                let parsed = typeof att.simpleType === 'undefined' ? originalValue : this.parseSimpleType(originalValue, att.simpleType);
-                if (parsed === null) {
-                    if (att.default !== undefined) {
-                        parsed = att.default;
-                    } else if (!att.optional) {
-                        console.log(`Missing required attribute ${JSON.stringify(att)}\n\t${JSON.stringify(xml.attributes)}`)
-                        return null;
-                    }
 
+
+
+
+        let contentType: Record<string, string> = {};
+
+        if (element.content) {
+            if (element.content.type === 'all') {
+                const allObject = this.parseAllType(xml, element.content, { index: 0 })
+                if (allObject === null) {
+                    return null;
                 }
-                if (parsed !== null) {
-                    attributeType[att.name.local] = parsed;
+                contentType = { ...allObject, ...contentType };
+
+
+            } else if (element.content.type === 'choise') {
+                const allObject = this.parseChoiceType(xml, element.content, { index: 0 })
+                if (allObject === null) {
+                    return null;
                 }
+                contentType = { ...allObject, ...contentType };
+
+
+            } else if (element.content.type === 'sequence') {
+                const allObject = this.parseSequenceType(xml, element.content, { index: 0 })
+                if (allObject === null) {
+                    return null;
+                }
+                contentType = { ...allObject, ...contentType };
             }
-
-            return { ...attributeType, ...t };
-
         }
+
+
+
+
+
+
+        const attributeType: Record<string, string> = {};
+
+        for (const att of element.attributes) {
+
+            const originalValue = xml.attributes[att.name.local];
+            // if (att.name.local == 'Distanz') {
+            //     console.log(`${JSON.stringify(att)}\n${originalValue}`)
+            // }
+            let parsed = typeof att.simpleType === 'undefined' ? originalValue : this.parseSimpleType(originalValue, att.simpleType);
+            if (parsed === null) {
+                if (att.default !== undefined) {
+                    parsed = att.default;
+                } else if (!att.optional) {
+                    console.log(`Missing required attribute ${JSON.stringify(att)}\n\t${JSON.stringify(xml.attributes)}`)
+                    return null;
+                }
+
+            }
+            if (parsed !== null) {
+                attributeType[att.name.local] = parsed;
+            }
+        }
+
+        return { ...contentType, ...attributeType, ...t };
+
+
     }
     private parseSimpleType(xml: Xml | string, element: simpleType): any {
         if (typeof xml === 'undefined') {

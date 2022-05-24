@@ -110,6 +110,7 @@ export type simpleContent = {
 export type complexContent = {
     type: 'complexContent',
     base: complexType | simpleType,
+    content: container | undefined,
     attributes: attribute[]
 }
 export type container = sequence | all | choise;
@@ -125,7 +126,7 @@ export type attribute = {
 export type complexType = {
     type: 'complexType',
     name?: TagName,
-    content: container | simpleContent| complexContent | undefined,
+    content: container | simpleContent | complexContent | undefined,
     attributes: attribute[],
 }
 
@@ -432,9 +433,13 @@ function getComplexType(xml: Xml, targetNamespace: string): DeepPromise<complexT
                 if (withoutAnotations[0].name.local === 'extension' && xml.name.namespace === 'http://www.w3.org/2001/XMLSchema') {
                     const r: DeepPromise<complexContent> = makePromise<complexContent>(async resolve => {
                         const base = complexOrSimpleTypeDepot.getType(getTagname(withoutAnotations[0].attributes['base'], xml.scope));
+                        const first = withoutAnotations[0].children.filter(x => (x.name.local !== 'annotation' && x.name.local !== 'attribute' && x.name.local !== 'attributeGroup') || x.name.namespace !== 'http://www.w3.org/2001/XMLSchema')[0];
+   
+
                         const r: complexContent = {
                             base: await waitAll(base) as any,
                             type: "complexContent",
+                            content: await waitAll(getContainer(first)) as any,
                             attributes: getAttributes(withoutAnotations[0].children, targetNamespace) as any,
                         }
                         resolve(r);
@@ -455,10 +460,10 @@ function getComplexType(xml: Xml, targetNamespace: string): DeepPromise<complexT
         }
         const simpleContent = getSimpleContent(first);
         const complexContent = getComplexContent(first);
-        if (simpleContent??complexContent) {
+        if (simpleContent ?? complexContent) {
             const r: DeepPromise<complexType> = {
                 type: "complexType",
-                content: simpleContent ??complexContent,
+                content: simpleContent ?? complexContent,
                 attributes: getAttributes(xml.children, targetNamespace),
             }
             if (xml.attributes['name']) {

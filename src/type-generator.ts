@@ -61,7 +61,7 @@ function writeType(obj: WithId<element | attribute | complexType | simpleType>, 
     }
 }
 
-function generateType(obj: element | attribute | complexType | simpleType | container | simpleContent| complexContent | undefined, useId: boolean, types: Record<string, string>, typeRenderer: (name: TagName) => string, setName?: boolean): string {
+function generateType(obj: element | attribute | complexType | simpleType | container | simpleContent | complexContent | undefined, useId: boolean, types: Record<string, string>, typeRenderer: (name: TagName) => string, setName?: boolean): string {
 
 
     if (typeof obj === 'undefined') {
@@ -160,13 +160,11 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
             return `{meta:${attributeType}, value :${generateType(obj.base, true, types, typeRenderer)}}`;
         }
     } else if (obj.type === 'complexContent') {
-        if (obj.attributes.length == 0) {
-            return generateType(obj.base, true, types, typeRenderer);
-        } else {
-            const attributeType = obj.attributes.map(x => generateType(x, true, types, typeRenderer)).reduce((p, c) => p === '' ? c : `${p} & ${c}`, '');
-            return `(${attributeType}) & (${generateType(obj.base, true, types, typeRenderer)})`;
-        }
-
+        const toConcat =
+            obj.attributes.map(x => generateType(x, true, types, typeRenderer))
+                .concat(generateType(obj.base, true, types, typeRenderer),
+                    generateType(obj.content, true, types, typeRenderer));
+        return toConcat.reduce((p, c) => p === '' ? c : `${p} & ${c}`, '')
     }
 
     throw Error('Not supported type' + JSON.stringify(obj));

@@ -44,11 +44,11 @@ export class Parser<T> {
 
     private parseChoiceType(xml: Xml, element: choise, index: { index: number }): any {
 
-        const parseChoiceInternal = (xml: Xml, element: choise, index: { index: number }): any => {
+        const parseChoiceInternal = (xml: Xml, choise: choise, index: { index: number }): any => {
             let result: any = null;
             let currentIndex = index.index;
-            for (let i = 0; i < element.content.length; i++) {
-                const x = element.content[i];
+            for (let i = 0; i < choise.content.length; i++) {
+                const x = choise.content[i];
                 if (x.type === 'element') {
                     if (x.occurence.maxOccurance === 'unbounded' || x.occurence.maxOccurance > 1) {
                         let i = 0;
@@ -160,7 +160,7 @@ export class Parser<T> {
                 }
             }
 
-            const numberofElements = Object.values(result).map(x => (x as any[]).length).reduce((p, c) => p + c, 0);
+            const numberofElements = Object.entries(result).filter(([key]) => key !== '#').map(x => (x[1] as any[]).length).reduce((p, c) => p + c, 0);
             if (numberofElements < element.occurence.minOccurance || numberofElements > element.occurence.maxOccurance) {
                 return null;
             }

@@ -426,7 +426,7 @@ export class Parser<T> {
                 let parsed = typeof att.simpleType === 'undefined' ? originalValue : this.parseSimpleType(originalValue, att.simpleType);
                 if (parsed === null) {
                     if (att.default !== undefined) {
-                        parsed = att.default;
+                        parsed = this.parseSimpleType(att.default, att.simpleType);
                     } else if (!att.optional) {
                         console.log(`Missing required attribute ${JSON.stringify(att)}\n\t${JSON.stringify(xml.attributes)}`)
                         return null;
@@ -498,7 +498,7 @@ export class Parser<T> {
             let parsed = typeof att.simpleType === 'undefined' ? originalValue : this.parseSimpleType(originalValue, att.simpleType);
             if (parsed === null) {
                 if (att.default !== undefined) {
-                    parsed = att.default;
+                    parsed = this.parseSimpleType(att.default, att.simpleType);
                 } else if (!att.optional) {
                     console.log(`Missing required attribute ${JSON.stringify(att)}\n\t${JSON.stringify(xml.attributes)}`)
                     return null;

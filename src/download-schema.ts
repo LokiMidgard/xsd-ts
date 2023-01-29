@@ -3,19 +3,19 @@ import fetch from 'node-fetch';
 import { filterUndefined } from "./utils";
 
 
-export async function downloadXsd(uri: string): Promise<Xml[]> {
+export async function downloadXsd(uri: string, entityLookup: (path: string) => Promise<string>): Promise<Xml[]> {
     const map: Record<string, Promise<Xml> | undefined> = {};
-    await GetSchemaXml(uri, map);
+    await GetSchemaXml(uri, map, (entityLookup ?? ((): string => { throw new Error('external Entity parsing not supported') })));
 
     const schemas = filterUndefined(await Promise.all(Object.values(map)))
     return schemas;
 }
 
-async function GetSchemaXml(uri: string, map: Record<string, Promise<Xml> | undefined>) {
+async function GetSchemaXml(uri: string, map: Record<string, Promise<Xml> | undefined>, entityLookup: (path: string) => Promise<string>) {
     console.info(`Download ${uri}`);
     const response = await fetch(uri);
 
-    const xml = parseXml(await response.text())
+    const xml = await parseXml(await response.text(), entityLookup)
 
     if (xml.name.local !== 'schema' || xml.name.namespace !== 'http://www.w3.org/2001/XMLSchema') {
         console.error(xml)
@@ -34,9 +34,9 @@ async function GetSchemaXml(uri: string, map: Record<string, Promise<Xml> | unde
         if (imports.attributes['schemaLocation']) {
             const lastSlash = uri.lastIndexOf('/');
             const subUri = uri.substring(0, lastSlash + 1) + imports.attributes['schemaLocation'];
-            map[newNamespace] = GetSchemaXml(subUri, map);
+            map[newNamespace] = GetSchemaXml(subUri, map,entityLookup);
         } else {
-            map[newNamespace] = GetSchemaXml(newNamespace, map);
+            map[newNamespace] = GetSchemaXml(newNamespace, map,entityLookup);
         }
     }
 

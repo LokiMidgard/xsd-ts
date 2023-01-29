@@ -195,10 +195,10 @@ export type element = {
 }
 
 
-export default async function parseSchemas(schemas: (Xml[]) | string): Promise<element[]> {
+export default async function parseSchemas(schemas: (Xml[]) | string, entityLookup: (path: string) => Promise<string>): Promise<element[]> {
 
     if (typeof schemas === 'string') {
-        return parseSchemas(await downloadXsd(schemas))
+        return parseSchemas(await downloadXsd(schemas,entityLookup),entityLookup)
     }
 
     const r: (DeepPromise<element> | DeepPromise<attribute> | DeepPromise<attribute[]> | DeepPromise<complexType> | DeepPromise<simpleType>)[] = [];

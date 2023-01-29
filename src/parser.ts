@@ -11,10 +11,13 @@ export class Parser<T> {
     /**
      * parse
      */
-    public parse(xml: string | Xml): T | undefined {
+    public parse(xml: string, entityLookup: (path: string) => Promise<string>): Promise<T | undefined>;
+    public parse(xml: Xml): Promise<T | undefined>;
+    public async parse(xml: string | Xml, entityLookup?: (path: string) => Promise<string>): Promise<T | undefined> {
         if (typeof xml === 'string') {
-            return this.parse(parseXml(xml));
+            return this.parse(await parseXml(xml, (entityLookup ?? ((): Promise<string> => { throw new Error('external Entity parsing not supported') }))));
         }
+
 
         return this.parseElement(xml, this.element) as T | undefined;
     }
@@ -394,7 +397,7 @@ export class Parser<T> {
                     console.log(`Missing required attribute ${JSON.stringify(att)}\n\t${JSON.stringify(xml.attributes)}`)
                     return null;
                 }
-                
+
             }
             // if (att.name.local == 'IgnoriereHöhere') {
             //     console.log(`${JSON.stringify(att)}\n${originalValue}\n${typeof parsed}: ${parsed}`)

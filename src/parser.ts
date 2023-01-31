@@ -11,11 +11,11 @@ export class Parser<T> {
     /**
      * parse
      */
-    public parse(xml: string, entityLookup: (path: string) => Promise<string>): Promise<T | undefined>;
+    public parse(xml: string, entityLookup?: (path: string) => Promise<string>): Promise<T | undefined>;
     public parse(xml: Xml): Promise<T | undefined>;
     public async parse(xml: string | Xml, entityLookup?: (path: string) => Promise<string>): Promise<T | undefined> {
         if (typeof xml === 'string') {
-            return this.parse(await parseXml(xml, (entityLookup ?? ((): Promise<string> => { throw new Error('external Entity parsing not supported') }))));
+            return this.parse(await parseXml(xml, entityLookup ));
         }
 
 

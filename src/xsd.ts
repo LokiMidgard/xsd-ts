@@ -195,7 +195,7 @@ export type element = {
 }
 
 
-export default async function parseSchemas(schemas: (Xml[]) | string, entityLookup: (path: string) => Promise<string>): Promise<element[]> {
+export default async function parseSchemas(schemas: (Xml[]) | string, entityLookup?: (path: string) => Promise<string>): Promise<element[]> {
 
     if (typeof schemas === 'string') {
         return parseSchemas(await downloadXsd(schemas,entityLookup),entityLookup)

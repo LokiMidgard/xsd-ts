@@ -110,13 +110,13 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
         if (obj.subType === 'native') {
             return obj.base;
         } else if (obj.subType === 'union') {
-            return obj.unions.map(x => generateType(x, true, types, typeRenderer)).reduce((p, c) => p === '' ? c : `${p} | ${c} `, '');
+            return obj.unions.map(x => generateType(x, true, types, typeRenderer)).reduce((p, c) => p === '' ? `(${c})` : `${p} | (${c}) `, '');
         } else if (obj.subType === 'list') {
             throw Error('List is not yet supported');
         } else if (obj.subType === 'restriction') {
             if (obj.subSubType === 'enumeration') {
 
-                return obj.values.map(x => typeof x === 'string' ? `'${x}'` : x).reduce((p, c) => p === '' ? c : `${p} | ${c} `, '');
+                return obj.values.map(x => typeof x === 'string' ? `'${x}'` : x).reduce((p, c) => p === '' ? `(${c})` : `${p} | (${c}) `, '');
             } else if (obj.subSubType === 'Number') {
                 return 'number';
             } else if (obj.subSubType === 'pattern') {
@@ -128,7 +128,7 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
     } else if (obj.type === 'complexType') {
         // withId;
         const contentType = generateType(obj.content, true, types, typeRenderer);
-        const attributeType = obj.attributes.map(x => generateType(x, true, types, typeRenderer)).reduce((p, c) => p === '' ? c : `${p} & ${c}`, '');
+        const attributeType = obj.attributes.map(x => generateType(x, true, types, typeRenderer)).reduce((p, c) => p === '' ? `(${c})` : `${p} & (${c})`, '');
         if (attributeType === '') {
             return contentType;
         }
@@ -141,22 +141,22 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
         if ((obj.occurence.maxOccurance === 'unbounded' || obj.occurence.maxOccurance > 1) && obj.content.length > 1) {
             throw Error('Currently can`t handle more then one content in an all with occurance higher then 1')
         }
-        return obj.content.map(x => generateType(x, true, types, typeRenderer)).reduce((p, c) => p === '' ? c : `${p} & ${c}`, '')
+        return obj.content.map(x => generateType(x, true, types, typeRenderer)).reduce((p, c) => p === '' ? `(${c})` : `${p} & (${c})`, '')
     } else if (obj.type === 'choise') {
         if (obj.occurence.maxOccurance === 'unbounded' || obj.occurence.maxOccurance > 1) {
-            return '(' + obj.content.map(x => generateType(x, true, types, typeRenderer)).reduce((p, c) => p === '' ? `SubArray<${c}>` : `${p} & SubArray<${c}>`, '') + ')'
+            return '(' + obj.content.map(x => generateType(x, true, types, typeRenderer)).reduce((p, c) => p === '' ? `(SubArray<${c}>)` : `${p} & (SubArray<${c}>)`, '') + ')'
         }
-        return obj.content.map(x => generateType(x, true, types, typeRenderer, true)).reduce((p, c) => p === '' ? c : `${p} | ${c}`, '')
+        return obj.content.map(x => generateType(x, true, types, typeRenderer, true)).reduce((p, c) => p === '' ? `(${c})` : `${p} | (${c})`, '')
     } else if (obj.type === 'sequence') {
         if ((obj.occurence.maxOccurance === 'unbounded' || obj.occurence.maxOccurance > 1) && obj.content.length > 1) {
             throw Error(`Currently can't handle more then one content in an sequence with occurance higher then 1 ${JSON.stringify([obj.content.length, obj.occurence])}`)
         }
-        return obj.content.map(x => generateType(x, true, types, typeRenderer)).reduce((p, c) => p === '' ? c : `${p} & ${c}`, '')
+        return obj.content.map(x => generateType(x, true, types, typeRenderer)).reduce((p, c) => p === '' ? `(${c})` : `${p} & (${c})`, '')
     } else if (obj.type === 'simpleContent') {
         if (obj.attributes.length == 0) {
             return generateType(obj.base, true, types, typeRenderer);
         } else {
-            const attributeType = obj.attributes.map(x => generateType(x, true, types, typeRenderer)).reduce((p, c) => p === '' ? c : `${p} & ${c}`, '');
+            const attributeType = obj.attributes.map(x => generateType(x, true, types, typeRenderer)).reduce((p, c) => p === '' ? `(${c})` : `${p} & (${c})`, '');
             return `{meta:${attributeType}, value :${generateType(obj.base, true, types, typeRenderer)}}`;
         }
     } else if (obj.type === 'complexContent') {
@@ -164,7 +164,7 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
             obj.attributes.map(x => generateType(x, true, types, typeRenderer))
                 .concat(generateType(obj.base, true, types, typeRenderer),
                     generateType(obj.content, true, types, typeRenderer));
-        return toConcat.reduce((p, c) => p === '' ? c : `${p} & ${c}`, '')
+        return toConcat.reduce((p, c) => p === '' ? `(${c})` : `${p} & (${c})`, '')
     }
 
     throw Error('Not supported type' + JSON.stringify(obj));

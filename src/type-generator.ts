@@ -135,7 +135,7 @@ function generateType(obj: element | attribute | complexType | simpleType | cont
         else if (contentType === '') {
             return attributeType;
         }
-        return `${contentType} & ${attributeType}`;
+        return `(${contentType}) & (${attributeType})`;
 
     } else if (obj.type === 'all') {
         if ((obj.occurence.maxOccurance === 'unbounded' || obj.occurence.maxOccurance > 1) && obj.content.length > 1) {
